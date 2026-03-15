@@ -20,11 +20,58 @@ Bridge shard that wires Crumble applications to generic Web Push primitives.
 require "crumble-web-push"
 ```
 
-`crumble-web-push` currently provides only a bootstrap integration surface:
+`crumble-web-push` provides:
 - `Crumble::Web::Push::Client::Integration`
 - `Crumble::Web::Push::Server::Integration`
+- `Crumble::Web::Push::Server::SubscriptionAdapter`
+- `Crumble::Web::Push::Server::SubscriptionContract`
 
-No push protocol or delivery logic is implemented yet.
+### Storage adapter interface
+
+Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence backend:
+
+```crystal
+abstract class Crumble::Web::Push::Server::SubscriptionAdapter
+  abstract def save(subscription : Subscription) : Nil
+  abstract def delete(user_id : String, device_id : String) : Bool
+  abstract def list_by_user(user_id : String) : Array(Subscription)
+  abstract def list_by_device(device_id : String) : Array(Subscription)
+end
+```
+
+The shard intentionally does not ship a DB implementation.
+
+### Subscription endpoint payload contract
+
+`Crumble::Web::Push::Server::SubscriptionContract` validates and parses endpoint payloads:
+- `parse_create(body : String)` for create payloads
+- `parse_update(body : String)` for update payloads
+- `parse_delete(body : String)` for delete payloads
+
+Create/update payload:
+
+```json
+{
+  "user_id": "user-1",
+  "device_id": "device-1",
+  "endpoint": "https://push.example/subscription",
+  "keys": {
+    "auth": "base64-auth",
+    "p256dh": "base64-p256dh"
+  }
+}
+```
+
+Delete payload:
+
+```json
+{
+  "user_id": "user-1",
+  "device_id": "device-1"
+}
+```
+
+`userId`/`deviceId` camelCase keys are also accepted for browser-facing payloads.
 
 ## Contributing
 
