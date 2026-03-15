@@ -3,30 +3,28 @@ require "set"
 module Crumble::Web::Push::Client
   module Integration
     DEFAULT_SERVICE_WORKER_SCOPE = "/"
-    PUSH_SERVICE_WORKER_SOURCE   = <<-JS
-      self.addEventListener("push", function(event) {
-        if (!event || !event.data) { return; }
-        var payload = {};
-        try {
-          payload = event.data.json();
-        } catch (error) {
-          payload = { title: event.data.text() };
-        }
-        self.registration.showNotification(payload.title || "Notification", {
-          body: payload.body || "",
-          icon: payload.icon,
-          data: payload.data
-        });
-      });
 
-      self.addEventListener("notificationclick", function(event) {
-        event.notification.close();
-        event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(function(client_list) {
-          if (client_list.length > 0) { return client_list[0].focus(); }
-          return clients.openWindow("/");
-        }));
-      });
-    JS
+    class PushServiceWorkerSource < JS::Code
+      def_to_js do
+        self.addEventListener("push") do |event|
+          if event && event.data
+            payload = event.data.json._call
+            self.registration.showNotification(payload.title || "Notification", {body: payload.body || "", icon: payload.icon, data: payload.data})
+          end
+        end
+
+        self.addEventListener("notificationclick") do |event|
+          event.notification.close._call
+          event.waitUntil(clients.matchAll(type: "window", includeUncontrolled: true).then do |client_list|
+            if client_list.length > 0
+              client_list[0].focus._call
+            else
+              clients.openWindow("/")
+            end
+          end)
+        end
+      end
+    end
 
     @@registrations_by_target = Hash(UInt64, Set(String)).new { |registrations, target| registrations[target] = Set(String).new }
 
@@ -58,7 +56,7 @@ module Crumble::Web::Push::Client
     end
 
     def self.push_service_worker_source : String
-      PUSH_SERVICE_WORKER_SOURCE
+      PushServiceWorkerSource.to_js
     end
   end
 end
