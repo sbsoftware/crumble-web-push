@@ -15,4 +15,9 @@ describe Crumble::Web::Push do
     Crumble::Web::Push::Client::Integration.name.should eq("Crumble::Web::Push::Client::Integration")
     Crumble::Web::Push::Server::Integration.name.should eq("Crumble::Web::Push::Server::Integration")
   end
+
+  it "exposes server subscription contracts and adapter interface" do
+    Crumble::Web::Push::Server::SubscriptionAdapter.name.should eq("Crumble::Web::Push::Server::SubscriptionAdapter")
+    Crumble::Web::Push::Server::SubscriptionContract.name.should eq("Crumble::Web::Push::Server::SubscriptionContract")
+  end
 end
