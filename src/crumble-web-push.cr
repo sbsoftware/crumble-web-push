@@ -1,6 +1,10 @@
-# TODO: Write documentation for `Crumble::Web::Push`
+require "crumble"
+require "stimulus"
+require "web-push"
+
+require "./crumble/web/push/client"
+require "./crumble/web/push/server"
+
 module Crumble::Web::Push
   VERSION = "0.1.0"
-
-  # TODO: Put your code here
 end

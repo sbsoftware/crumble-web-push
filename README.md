@@ -1,6 +1,6 @@
 # crumble-web-push
 
-TODO: Write a description here
+Bridge shard that wires Crumble applications to generic Web Push primitives.
 
 ## Installation
 
@@ -20,11 +20,11 @@ TODO: Write a description here
 require "crumble-web-push"
 ```
 
-TODO: Write usage instructions here
+`crumble-web-push` currently provides only a bootstrap integration surface:
+- `Crumble::Web::Push::Client::Integration`
+- `Crumble::Web::Push::Server::Integration`
 
-## Development
-
-TODO: Write development instructions here
+No push protocol or delivery logic is implemented yet.
 
 ## Contributing
 
