@@ -45,26 +45,35 @@ describe Crumble::Web::Push::Client::Integration do
     composition.registrations.map(&.[:scope]).should eq(["/", "/notifications"])
   end
 
-  it "composes a configurable stimulus controller for push subscription updates" do
+  it "composes a stimulus controller source built with stimulus.cr values" do
     composition = TestStimulusControllerComposition.new
-    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
+    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition)
 
     composition.registrations.map(&.[:controller_name]).should eq(["crumble-web-push--subscription"])
     source = composition.registrations.first[:source]
+    source.should contain("static values = {endpointUrl: String, vapidPublicKey: String};")
     source.should contain("Notification.requestPermission()")
     source.should contain("registration.pushManager.subscribe")
     source.should contain("registration.pushManager.getSubscription()")
-    source.should contain("const endpointUrl = \"/push/subscriptions\"")
-    source.should contain("return fetch(endpointUrl")
+    source.should contain("this.endpointUrlValue")
+    source.should contain("this.vapidPublicKeyValue")
+    source.should contain("this.hasEndpointUrlValue")
     source.should contain("window.Stimulus.register(\"crumble-web-push--subscription\"")
-    source.should contain("dispatch(\"failure\"")
-    source.should contain("permission === \"denied\" ? \"permission_denied\"")
-    source.should contain("Promise.reject({ code: \"sync_failed\"")
+    source.should contain("Promise.reject({code: \"sync_failed\"")
+    source.should_not contain("/push/subscriptions")
+    source.should_not contain("BKf6v4Nf3F9")
+  end
+
+  it "exposes endpoint and vapid configuration as stimulus values" do
+    values = Crumble::Web::Push::Client::Integration.push_subscription_controller_values(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
+
+    values.map(&.attr_name).should eq(["data-crumble-web-push--subscription-endpoint-url-value", "data-crumble-web-push--subscription-vapid-public-key-value"])
+    values.map(&.value).should eq(["/push/subscriptions", "BKf6v4Nf3F9"])
   end
 
   it "supports custom controller names via the connector helper" do
     composition = TestStimulusControllerComposition.new
-    Crumble::Web::Push::Client::Integration.push_subscription_controller(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9", controller_name: "notifications--subscription").compose(composition)
+    Crumble::Web::Push::Client::Integration.push_subscription_controller(controller_name: "notifications--subscription").compose(composition)
 
     composition.registrations.map(&.[:controller_name]).should eq(["notifications--subscription"])
     composition.registrations.first[:source].should contain("window.Stimulus.register(\"notifications--subscription\"")
@@ -73,17 +82,17 @@ describe Crumble::Web::Push::Client::Integration do
   it "prevents competing stimulus controller registrations for the same name on the same composition" do
     composition = TestStimulusControllerComposition.new
 
-    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
-    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
-    Crumble::Web::Push::Client::Integration.push_subscription_controller(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9").compose(composition)
-    Crumble::Web::Push::Client::Integration.push_subscription_controller(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9", controller_name: "notifications--subscription").compose(composition)
-    Crumble::Web::Push::Client::Integration.compose_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9", controller_name: "notifications--subscription")
+    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition)
+    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition)
+    Crumble::Web::Push::Client::Integration.push_subscription_controller.compose(composition)
+    Crumble::Web::Push::Client::Integration.push_subscription_controller(controller_name: "notifications--subscription").compose(composition)
+    Crumble::Web::Push::Client::Integration.compose_subscription_controller(composition, controller_name: "notifications--subscription")
 
     composition.registrations.map(&.[:controller_name]).should eq(["crumble-web-push--subscription", "notifications--subscription"])
   end
 
-  it "rejects blank endpoint or vapid key configuration" do
-    expect_raises(ArgumentError, "endpoint_url must not be empty") { Crumble::Web::Push::Client::Integration.push_subscription_controller_source(endpoint_url: " ", vapid_public_key: "BKf6v4Nf3F9") }
-    expect_raises(ArgumentError, "vapid_public_key must not be empty") { Crumble::Web::Push::Client::Integration.push_subscription_controller_source(endpoint_url: "/push/subscriptions", vapid_public_key: " ") }
+  it "rejects blank endpoint or vapid key values" do
+    expect_raises(ArgumentError, "endpoint_url must not be empty") { Crumble::Web::Push::Client::Integration.push_subscription_controller_values(endpoint_url: " ", vapid_public_key: "BKf6v4Nf3F9") }
+    expect_raises(ArgumentError, "vapid_public_key must not be empty") { Crumble::Web::Push::Client::Integration.push_subscription_controller_values(endpoint_url: "/push/subscriptions", vapid_public_key: " ") }
   end
 end

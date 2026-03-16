@@ -47,21 +47,20 @@ Repeated composition for the same scope is idempotent and will not create compet
 Use `Crumble::Web::Push::Client::Integration` to compose a Stimulus controller that handles permission requests, subscribe/unsubscribe, and endpoint synchronization:
 
 ```crystal
-Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(
-  app_composition,
-  endpoint_url: "/push/subscriptions",
-  vapid_public_key: ENV["VAPID_PUBLIC_KEY"]
-)
+Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(app_composition)
 ```
 
-You can also use the connector helper and override the controller identifier:
+Configure the endpoint URL and VAPID public key as Stimulus values on the element using the controller:
 
 ```crystal
-Crumble::Web::Push::Client::Integration.push_subscription_controller(
-  endpoint_url: "/push/subscriptions",
-  vapid_public_key: ENV["VAPID_PUBLIC_KEY"],
-  controller_name: "notifications--subscription"
-).compose(app_composition)
+div CrumbleWebPush::SubscriptionController,
+  *Crumble::Web::Push::Client::Integration.push_subscription_controller_values(
+    endpoint_url: "/push/subscriptions",
+    vapid_public_key: ENV["VAPID_PUBLIC_KEY"]
+  ),
+  CrumbleWebPush::SubscriptionController.subscribe_action("click") do
+  "Enable notifications"
+end
 ```
 
 The generated controller dispatches predictable Stimulus events for app-level UX handling:
