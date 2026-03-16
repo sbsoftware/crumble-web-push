@@ -47,7 +47,7 @@ describe Crumble::Web::Push::Client::Integration do
   end
 
   it "emits a stimulus controller source built with stimulus.cr values" do
-    source = Crumble::Web::Push::Client::Integration.subscription_controller_source
+    source = CrumbleWebPush::SubscriptionController.to_js
     source.should contain("static values = {endpointUrl: String, vapidPublicKey: String};")
     source.should contain("Notification.requestPermission()")
     source.should contain("registration.pushManager.subscribe")
@@ -56,6 +56,7 @@ describe Crumble::Web::Push::Client::Integration do
     source.should contain("this.vapidPublicKeyValue")
     source.should contain("this.hasEndpointUrlValue")
     source.should contain("Promise.reject({code: \"sync_failed\"")
+    source.should_not contain("dispatch(\"")
     source.should_not contain("/__crumble_web_push_subscriptions__")
   end
 
@@ -71,23 +72,6 @@ describe Crumble::Web::Push::Client::Integration do
       html.should contain(%(data-controller="crumble-web-push--subscription"))
       html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="/__crumble_web_push_subscriptions__"))
       html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="BKf6v4Nf3F9"))
-    ensure
-      if previous_vapid_key.nil?
-        ENV.delete(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV)
-      else
-        ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = previous_vapid_key
-      end
-    end
-  end
-
-  it "exposes the default endpoint stub and env-backed vapid key as stimulus values" do
-    previous_vapid_key = ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV]?
-    begin
-      ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = "BKf6v4Nf3F9"
-
-      values = Crumble::Web::Push::Client::Integration.subscription_controller_values
-      values.map(&.attr_name).should eq({"data-crumble-web-push--subscription-endpoint-url-value", "data-crumble-web-push--subscription-vapid-public-key-value"})
-      values.map(&.value).should eq({"/__crumble_web_push_subscriptions__", "BKf6v4Nf3F9"})
     ensure
       if previous_vapid_key.nil?
         ENV.delete(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV)

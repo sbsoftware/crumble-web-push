@@ -54,11 +54,6 @@ The shard also adds default body-level Stimulus values automatically:
 ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"] = "your-vapid-public-key"
 ```
 
-The generated controller dispatches predictable Stimulus events for app-level UX handling:
-- `success` with `detail.action` + `detail.subscription`
-- `failure` with `detail.action` + `detail.code` + `detail.message`
-- `state` with `detail.code = "ready"` on connect
-
 ### Storage adapter interface
 
 Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence backend:
