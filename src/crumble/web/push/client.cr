@@ -1,7 +1,7 @@
 require "set"
 
 module CrumbleWebPush
-  class SubscriptionController < Stimulus::Controller
+  stimulus_controller SubscriptionController do
     values endpoint_url: String, vapid_public_key: String
 
     js_method :connect do
@@ -141,8 +141,11 @@ end
 
 module Crumble::Web::Push::Client
   module Integration
-    DEFAULT_SERVICE_WORKER_SCOPE              = "/"
-    DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME = ::CrumbleWebPush::SubscriptionController.controller_name
+    DEFAULT_SERVICE_WORKER_SCOPE    = "/"
+    STUB_SUBSCRIPTION_ENDPOINT      = "/__crumble_web_push_subscriptions__"
+    VAPID_PUBLIC_KEY_ENV            = "CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"
+    DEFAULT_VAPID_PUBLIC_KEY        = ""
+    DEFAULT_SUBSCRIPTION_CONTROLLER = ::CrumbleWebPush::SubscriptionController
 
     class PushServiceWorkerSource < JS::Code
       def_to_js do
@@ -162,23 +165,6 @@ module Crumble::Web::Push::Client
               clients.openWindow("/")
             end
           end)
-        end
-      end
-    end
-
-    class SubscriptionControllerSource < JS::Code
-      def self.to_js
-        String.build do |io|
-          io << ::CrumbleWebPush::SubscriptionController.to_js
-          io << '\n'
-          io << '\n'
-          io << "if (window.Stimulus && window.Stimulus.register) {\n"
-          io << "window.Stimulus.register("
-          io << DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME.dump
-          io << ", "
-          io << ::CrumbleWebPush::SubscriptionController.to_js_ref
-          io << ");\n"
-          io << "}"
         end
       end
     end
@@ -217,33 +203,34 @@ module Crumble::Web::Push::Client
     end
 
     def self.subscription_controller_source : String
-      SubscriptionControllerSource.to_js
+      DEFAULT_SUBSCRIPTION_CONTROLLER.to_js
     end
 
     def self.push_subscription_controller_source : String
       subscription_controller_source
     end
 
-    def self.subscription_controller_values(endpoint_url : String, vapid_public_key : String) : Array(Stimulus::Value)
-      [
-        ::CrumbleWebPush::SubscriptionController.endpoint_url_value(resolve_required_value("endpoint_url", endpoint_url)),
-        ::CrumbleWebPush::SubscriptionController.vapid_public_key_value(resolve_required_value("vapid_public_key", vapid_public_key)),
-      ]
+    def self.subscription_endpoint : String
+      STUB_SUBSCRIPTION_ENDPOINT
     end
 
-    def self.push_subscription_controller_values(endpoint_url : String, vapid_public_key : String) : Array(Stimulus::Value)
-      subscription_controller_values(endpoint_url: endpoint_url, vapid_public_key: vapid_public_key)
+    def self.vapid_public_key : String
+      ENV.fetch(VAPID_PUBLIC_KEY_ENV, DEFAULT_VAPID_PUBLIC_KEY)
     end
 
-    def self.resolve_required_value(field_name : String, value : String) : String
-      resolved_value = value.strip
-      raise ArgumentError.new("#{field_name} must not be empty") if resolved_value.empty?
-      resolved_value
+    def self.subscription_controller_values
+      {
+        DEFAULT_SUBSCRIPTION_CONTROLLER.endpoint_url_value(subscription_endpoint),
+        DEFAULT_SUBSCRIPTION_CONTROLLER.vapid_public_key_value(vapid_public_key),
+      }
+    end
+
+    def self.push_subscription_controller_values
+      subscription_controller_values
     end
   end
 end
 
 class ToHtml::Layout
-  append_to_head Crumble::Web::Push::Client::Integration::SubscriptionControllerSource
-  body_attributes CrumbleWebPush::SubscriptionController
+  body_attributes Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER, Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER.endpoint_url_value(Crumble::Web::Push::Client::Integration.subscription_endpoint), Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER.vapid_public_key_value(Crumble::Web::Push::Client::Integration.vapid_public_key)
 end

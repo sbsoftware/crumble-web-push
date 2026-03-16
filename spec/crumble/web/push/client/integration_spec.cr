@@ -55,30 +55,45 @@ describe Crumble::Web::Push::Client::Integration do
     source.should contain("this.endpointUrlValue")
     source.should contain("this.vapidPublicKeyValue")
     source.should contain("this.hasEndpointUrlValue")
-    source.should contain("window.Stimulus.register(\"crumble-web-push--subscription\"")
     source.should contain("Promise.reject({code: \"sync_failed\"")
-    source.should_not contain("/push/subscriptions")
-    source.should_not contain("BKf6v4Nf3F9")
+    source.should_not contain("/__crumble_web_push_subscriptions__")
   end
 
-  it "automatically adds the subscription controller to the layout body and head" do
-    html = String.build do |io|
-      TestLayout.new(ctx: test_handler_context).to_html(io) { |_inner_io, _indent_level| }
+  it "automatically adds the subscription controller and default values to the layout body" do
+    previous_vapid_key = ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV]?
+    begin
+      ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = "BKf6v4Nf3F9"
+
+      html = String.build do |io|
+        TestLayout.new(ctx: test_handler_context).to_html(io) { |_inner_io, _indent_level| }
+      end
+
+      html.should contain(%(data-controller="crumble-web-push--subscription"))
+      html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="/__crumble_web_push_subscriptions__"))
+      html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="BKf6v4Nf3F9"))
+    ensure
+      if previous_vapid_key.nil?
+        ENV.delete(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV)
+      else
+        ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = previous_vapid_key
+      end
     end
-
-    html.should contain(%(data-controller="crumble-web-push--subscription"))
-    html.should contain("window.Stimulus.register(\"crumble-web-push--subscription\"")
   end
 
-  it "exposes endpoint and vapid configuration as stimulus values" do
-    values = Crumble::Web::Push::Client::Integration.subscription_controller_values(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
+  it "exposes the default endpoint stub and env-backed vapid key as stimulus values" do
+    previous_vapid_key = ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV]?
+    begin
+      ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = "BKf6v4Nf3F9"
 
-    values.map(&.attr_name).should eq(["data-crumble-web-push--subscription-endpoint-url-value", "data-crumble-web-push--subscription-vapid-public-key-value"])
-    values.map(&.value).should eq(["/push/subscriptions", "BKf6v4Nf3F9"])
-  end
-
-  it "rejects blank endpoint or vapid key values" do
-    expect_raises(ArgumentError, "endpoint_url must not be empty") { Crumble::Web::Push::Client::Integration.subscription_controller_values(endpoint_url: " ", vapid_public_key: "BKf6v4Nf3F9") }
-    expect_raises(ArgumentError, "vapid_public_key must not be empty") { Crumble::Web::Push::Client::Integration.subscription_controller_values(endpoint_url: "/push/subscriptions", vapid_public_key: " ") }
+      values = Crumble::Web::Push::Client::Integration.subscription_controller_values
+      values.map(&.attr_name).should eq({"data-crumble-web-push--subscription-endpoint-url-value", "data-crumble-web-push--subscription-vapid-public-key-value"})
+      values.map(&.value).should eq({"/__crumble_web_push_subscriptions__", "BKf6v4Nf3F9"})
+    ensure
+      if previous_vapid_key.nil?
+        ENV.delete(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV)
+      else
+        ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = previous_vapid_key
+      end
+    end
   end
 end

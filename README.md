@@ -44,17 +44,14 @@ Repeated composition for the same scope is idempotent and will not create compet
 
 ### Push subscription controller
 
-This shard automatically registers `CrumbleWebPush::SubscriptionController` and attaches it to the `body` tag of `ToHtml::Layout`.
+This shard defines `CrumbleWebPush::SubscriptionController` via `stimulus_controller` and automatically attaches it to the `body` tag of `ToHtml::Layout`.
 
-Configure the endpoint URL and VAPID public key as body-level Stimulus values:
+The shard also adds default body-level Stimulus values automatically:
+- `endpoint_url` uses the current stub endpoint `"/__crumble_web_push_subscriptions__"`
+- `vapid_public_key` reads `ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"]` and defaults to an empty string
 
 ```crystal
-class ApplicationLayout < ToHtml::Layout
-  body_attributes *Crumble::Web::Push::Client::Integration.subscription_controller_values(
-    endpoint_url: "/push/subscriptions",
-    vapid_public_key: ENV["VAPID_PUBLIC_KEY"]
-  )
-end
+ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"] = "your-vapid-public-key"
 ```
 
 The generated controller dispatches predictable Stimulus events for app-level UX handling:
