@@ -42,24 +42,18 @@ Crumble::Web::Push::Client::Integration.push_service_worker(scope: "/notificatio
 
 Repeated composition for the same scope is idempotent and will not create competing registrations.
 
-### Push subscription controller connector
+### Push subscription controller
 
-Use `Crumble::Web::Push::Client::Integration` to compose a Stimulus controller that handles permission requests, subscribe/unsubscribe, and endpoint synchronization:
+This shard automatically registers `CrumbleWebPush::SubscriptionController` and attaches it to the `body` tag of `ToHtml::Layout`.
 
-```crystal
-Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(app_composition)
-```
-
-Configure the endpoint URL and VAPID public key as Stimulus values on the element using the controller:
+Configure the endpoint URL and VAPID public key as body-level Stimulus values:
 
 ```crystal
-div CrumbleWebPush::SubscriptionController,
-  *Crumble::Web::Push::Client::Integration.push_subscription_controller_values(
+class ApplicationLayout < ToHtml::Layout
+  body_attributes *Crumble::Web::Push::Client::Integration.subscription_controller_values(
     endpoint_url: "/push/subscriptions",
     vapid_public_key: ENV["VAPID_PUBLIC_KEY"]
-  ),
-  CrumbleWebPush::SubscriptionController.subscribe_action("click") do
-  "Enable notifications"
+  )
 end
 ```
 

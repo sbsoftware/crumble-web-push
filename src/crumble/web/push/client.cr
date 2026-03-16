@@ -166,8 +166,24 @@ module Crumble::Web::Push::Client
       end
     end
 
+    class SubscriptionControllerSource < JS::Code
+      def self.to_js
+        String.build do |io|
+          io << ::CrumbleWebPush::SubscriptionController.to_js
+          io << '\n'
+          io << '\n'
+          io << "if (window.Stimulus && window.Stimulus.register) {\n"
+          io << "window.Stimulus.register("
+          io << DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME.dump
+          io << ", "
+          io << ::CrumbleWebPush::SubscriptionController.to_js_ref
+          io << ");\n"
+          io << "}"
+        end
+      end
+    end
+
     @@registrations_by_target = Hash(UInt64, Set(String)).new { |registrations, target| registrations[target] = Set(String).new }
-    @@subscription_controller_registrations_by_target = Hash(UInt64, Set(String)).new { |registrations, target| registrations[target] = Set(String).new }
 
     class PushServiceWorkerConnector
       getter scope : String
@@ -181,28 +197,8 @@ module Crumble::Web::Push::Client
       end
     end
 
-    class PushSubscriptionControllerConnector
-      getter controller_name : String
-
-      def initialize(controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME)
-        @controller_name = Integration.resolve_controller_name(controller_name)
-      end
-
-      def compose(target) : Nil
-        Integration.compose_push_subscription_controller(target, controller_name: controller_name)
-      end
-    end
-
     def self.push_service_worker(scope : String = DEFAULT_SERVICE_WORKER_SCOPE) : PushServiceWorkerConnector
       PushServiceWorkerConnector.new(scope)
-    end
-
-    def self.push_subscription_controller(controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME) : PushSubscriptionControllerConnector
-      PushSubscriptionControllerConnector.new(controller_name: controller_name)
-    end
-
-    def self.subscription_controller(controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME) : PushSubscriptionControllerConnector
-      push_subscription_controller(controller_name: controller_name)
     end
 
     def self.compose_push_service_worker(target, scope : String = DEFAULT_SERVICE_WORKER_SCOPE) : Nil
@@ -216,54 +212,27 @@ module Crumble::Web::Push::Client
       target.service_worker(scope: resolved_scope) { push_service_worker_source }
     end
 
-    def self.compose_push_subscription_controller(target, controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME) : Nil
-      resolved_controller_name = resolve_controller_name(controller_name)
-
-      # Keep controller registration idempotent for a given composition object + controller name.
-      controller_names = @@subscription_controller_registrations_by_target[target.object_id]
-      return if controller_names.includes?(resolved_controller_name)
-
-      controller_names << resolved_controller_name
-      target.stimulus_controller(resolved_controller_name) { push_subscription_controller_source(controller_name: resolved_controller_name) }
-    end
-
-    def self.compose_subscription_controller(target, controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME) : Nil
-      compose_push_subscription_controller(target, controller_name: controller_name)
-    end
-
     def self.push_service_worker_source : String
       PushServiceWorkerSource.to_js
     end
 
-    def self.push_subscription_controller_source(controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME) : String
-      resolved_controller_name = resolve_controller_name(controller_name)
-      String.build do |io|
-        io << ::CrumbleWebPush::SubscriptionController.to_js
-        io << '\n'
-        io << '\n'
-        io << "if (window.Stimulus && window.Stimulus.register) {\n"
-        io << "window.Stimulus.register("
-        io << resolved_controller_name.dump
-        io << ", "
-        io << ::CrumbleWebPush::SubscriptionController.to_js_ref
-        io << ");\n"
-        io << "}"
-      end
+    def self.subscription_controller_source : String
+      SubscriptionControllerSource.to_js
     end
 
-    def self.subscription_controller_source(controller_name : String = DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME) : String
-      push_subscription_controller_source(controller_name: controller_name)
+    def self.push_subscription_controller_source : String
+      subscription_controller_source
     end
 
-    def self.push_subscription_controller_values(endpoint_url : String, vapid_public_key : String) : Array(Stimulus::Value)
+    def self.subscription_controller_values(endpoint_url : String, vapid_public_key : String) : Array(Stimulus::Value)
       [
         ::CrumbleWebPush::SubscriptionController.endpoint_url_value(resolve_required_value("endpoint_url", endpoint_url)),
         ::CrumbleWebPush::SubscriptionController.vapid_public_key_value(resolve_required_value("vapid_public_key", vapid_public_key)),
       ]
     end
 
-    def self.subscription_controller_values(endpoint_url : String, vapid_public_key : String) : Array(Stimulus::Value)
-      push_subscription_controller_values(endpoint_url: endpoint_url, vapid_public_key: vapid_public_key)
+    def self.push_subscription_controller_values(endpoint_url : String, vapid_public_key : String) : Array(Stimulus::Value)
+      subscription_controller_values(endpoint_url: endpoint_url, vapid_public_key: vapid_public_key)
     end
 
     def self.resolve_required_value(field_name : String, value : String) : String
@@ -271,10 +240,10 @@ module Crumble::Web::Push::Client
       raise ArgumentError.new("#{field_name} must not be empty") if resolved_value.empty?
       resolved_value
     end
-
-    def self.resolve_controller_name(controller_name : String) : String
-      resolved_name = controller_name.strip
-      resolved_name.empty? ? DEFAULT_PUSH_SUBSCRIPTION_CONTROLLER_NAME : resolved_name
-    end
   end
+end
+
+class ToHtml::Layout
+  append_to_head Crumble::Web::Push::Client::Integration::SubscriptionControllerSource
+  body_attributes CrumbleWebPush::SubscriptionController
 end
