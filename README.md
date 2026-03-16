@@ -42,6 +42,33 @@ Crumble::Web::Push::Client::Integration.push_service_worker(scope: "/notificatio
 
 Repeated composition for the same scope is idempotent and will not create competing registrations.
 
+### Push subscription controller connector
+
+Use `Crumble::Web::Push::Client::Integration` to compose a Stimulus controller that handles permission requests, subscribe/unsubscribe, and endpoint synchronization:
+
+```crystal
+Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(
+  app_composition,
+  endpoint_url: "/push/subscriptions",
+  vapid_public_key: ENV["VAPID_PUBLIC_KEY"]
+)
+```
+
+You can also use the connector helper and override the controller identifier:
+
+```crystal
+Crumble::Web::Push::Client::Integration.push_subscription_controller(
+  endpoint_url: "/push/subscriptions",
+  vapid_public_key: ENV["VAPID_PUBLIC_KEY"],
+  controller_name: "notifications--subscription"
+).compose(app_composition)
+```
+
+The generated controller dispatches predictable Stimulus events for app-level UX handling:
+- `success` with `detail.action` + `detail.subscription`
+- `failure` with `detail.action` + `detail.code` + `detail.message`
+- `state` with `detail.code = "ready"` on connect
+
 ### Storage adapter interface
 
 Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence backend:

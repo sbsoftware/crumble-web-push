@@ -8,6 +8,14 @@ private class TestServiceWorkerComposition
   end
 end
 
+private class TestStimulusControllerComposition
+  getter registrations = [] of NamedTuple(controller_name: String, source: String)
+
+  def stimulus_controller(controller_name : String, & : -> String) : Nil
+    registrations << {controller_name: controller_name, source: yield}
+  end
+end
+
 describe Crumble::Web::Push::Client::Integration do
   it "composes push worker registration for the default scope" do
     composition = TestServiceWorkerComposition.new
@@ -35,5 +43,47 @@ describe Crumble::Web::Push::Client::Integration do
     Crumble::Web::Push::Client::Integration.compose_push_service_worker(composition, scope: "/notifications")
 
     composition.registrations.map(&.[:scope]).should eq(["/", "/notifications"])
+  end
+
+  it "composes a configurable stimulus controller for push subscription updates" do
+    composition = TestStimulusControllerComposition.new
+    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
+
+    composition.registrations.map(&.[:controller_name]).should eq(["crumble-web-push--subscription"])
+    source = composition.registrations.first[:source]
+    source.should contain("Notification.requestPermission()")
+    source.should contain("registration.pushManager.subscribe")
+    source.should contain("registration.pushManager.getSubscription()")
+    source.should contain("const endpointUrl = \"/push/subscriptions\"")
+    source.should contain("return fetch(endpointUrl")
+    source.should contain("window.Stimulus.register(\"crumble-web-push--subscription\"")
+    source.should contain("dispatch(\"failure\"")
+    source.should contain("permission === \"denied\" ? \"permission_denied\"")
+    source.should contain("Promise.reject({ code: \"sync_failed\"")
+  end
+
+  it "supports custom controller names via the connector helper" do
+    composition = TestStimulusControllerComposition.new
+    Crumble::Web::Push::Client::Integration.push_subscription_controller(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9", controller_name: "notifications--subscription").compose(composition)
+
+    composition.registrations.map(&.[:controller_name]).should eq(["notifications--subscription"])
+    composition.registrations.first[:source].should contain("window.Stimulus.register(\"notifications--subscription\"")
+  end
+
+  it "prevents competing stimulus controller registrations for the same name on the same composition" do
+    composition = TestStimulusControllerComposition.new
+
+    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
+    Crumble::Web::Push::Client::Integration.compose_push_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9")
+    Crumble::Web::Push::Client::Integration.push_subscription_controller(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9").compose(composition)
+    Crumble::Web::Push::Client::Integration.push_subscription_controller(endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9", controller_name: "notifications--subscription").compose(composition)
+    Crumble::Web::Push::Client::Integration.compose_subscription_controller(composition, endpoint_url: "/push/subscriptions", vapid_public_key: "BKf6v4Nf3F9", controller_name: "notifications--subscription")
+
+    composition.registrations.map(&.[:controller_name]).should eq(["crumble-web-push--subscription", "notifications--subscription"])
+  end
+
+  it "rejects blank endpoint or vapid key configuration" do
+    expect_raises(ArgumentError, "endpoint_url must not be empty") { Crumble::Web::Push::Client::Integration.push_subscription_controller_source(endpoint_url: " ", vapid_public_key: "BKf6v4Nf3F9") }
+    expect_raises(ArgumentError, "vapid_public_key must not be empty") { Crumble::Web::Push::Client::Integration.push_subscription_controller_source(endpoint_url: "/push/subscriptions", vapid_public_key: " ") }
   end
 end
