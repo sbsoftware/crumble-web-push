@@ -26,6 +26,22 @@ require "crumble-web-push"
 - `Crumble::Web::Push::Server::SubscriptionAdapter`
 - `Crumble::Web::Push::Server::SubscriptionContract`
 
+### Push service worker connector
+
+Use `Crumble::Web::Push::Client::Integration` to compose a push-capable service worker into Crumble's `service_worker(scope: "/") { ... }` pipeline:
+
+```crystal
+Crumble::Web::Push::Client::Integration.compose_push_service_worker(app_composition)
+```
+
+The default scope is `/`. You can override scope per connector:
+
+```crystal
+Crumble::Web::Push::Client::Integration.push_service_worker(scope: "/notifications").compose(app_composition)
+```
+
+Repeated composition for the same scope is idempotent and will not create competing registrations.
+
 ### Storage adapter interface
 
 Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence backend:

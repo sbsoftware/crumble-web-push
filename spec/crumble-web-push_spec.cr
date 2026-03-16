@@ -11,8 +11,9 @@ describe Crumble::Web::Push do
     Web::Push.name.should eq("Web::Push")
   end
 
-  it "provides client and server integration placeholders" do
+  it "provides client and server integration namespaces" do
     Crumble::Web::Push::Client::Integration.name.should eq("Crumble::Web::Push::Client::Integration")
+    Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector.name.should eq("Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector")
     Crumble::Web::Push::Server::Integration.name.should eq("Crumble::Web::Push::Server::Integration")
   end
 
