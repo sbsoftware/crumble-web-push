@@ -23,6 +23,7 @@ require "crumble-web-push"
 `crumble-web-push` provides:
 - `Crumble::Web::Push::Client::Integration`
 - `Crumble::Web::Push::Server::Integration`
+- `Crumble::Web::Push::Server::Integration::Sender`
 - `Crumble::Web::Push::Server::SubscriptionAdapter`
 - `Crumble::Web::Push::Server::SubscriptionContract`
 
@@ -68,6 +69,30 @@ end
 ```
 
 The shard intentionally does not ship a DB implementation.
+
+### Server-side sender facade
+
+Use `Crumble::Web::Push::Server::Integration.sender` to bridge stored subscriptions into `WebPush::Client#send`:
+
+```crystal
+client = WebPush::Client.new(
+  WebPush::VapidConfig.new(
+    public_key: ENV["WEB_PUSH_PUBLIC_KEY"],
+    private_key: ENV["WEB_PUSH_PRIVATE_KEY"],
+    subject: "mailto:admin@example.com"
+  )
+)
+
+sender = Crumble::Web::Push::Server::Integration.sender(adapter, client)
+outcomes = sender.send_to_user("user-1", %({"title":"Hello"}), ttl: 60)
+
+outcomes.each do |outcome|
+  next unless outcome.cleanup?
+  adapter.delete(outcome.subscription.user_id, outcome.subscription.device_id)
+end
+```
+
+The facade converts `Crumble::Web::Push::Server::Subscription` entries into `WebPush::Subscription` values and exposes `WebPush::Client::SendResult` helpers like `cleanup?` and `retryable?` through each returned outcome.
 
 ### Subscription endpoint payload contract
 

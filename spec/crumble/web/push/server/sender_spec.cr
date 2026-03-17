@@ -1,5 +1,11 @@
 require "../../../../spec_helper"
 
+private SENDER_TEST_PUBLIC_KEY  = "BNpReHjFgbvl8tsrMoRJl-eKTIhYQXUsVPgIMGB2AUUG-ufq4N6F4FRsBiphNVCrkXGB5EPExzQoa6Qzng0yxyU"
+private SENDER_TEST_PRIVATE_KEY = "79Om5Okowk6Tkd-1moexy7bIXuQQb5o2J9SWPq75Wnw"
+private SENDER_TEST_SUBJECT     = "mailto:admin@example.com"
+private SENDER_TEST_P256DH      = "BNnjgxL7iRJVGG2WfKoCcEas8uXFYFw4b6ivLqWsMp8pMhmdN3LRYQTyFWuE_MOCSD_OLdj2K2gtH3ggUe4nYeY"
+private SENDER_TEST_AUTH        = "KsWb025fekARlsIkDa5Vnw"
+
 private class SenderSpecSubscriptionAdapter < Crumble::Web::Push::Server::SubscriptionAdapter
   @subscriptions = [] of Crumble::Web::Push::Server::Subscription
 
@@ -23,56 +29,68 @@ private class SenderSpecSubscriptionAdapter < Crumble::Web::Push::Server::Subscr
   end
 end
 
-private record FakePushResponse, status_code : Int32
+private struct CapturedSenderRequest
+  getter endpoint : String
+  getter body : String
 
-private class FakePushError < Exception
-  getter status_code : Int32
-
-  def initialize(@status_code : Int32, message : String)
-    super(message)
+  def initialize(@endpoint : String, @body : String)
   end
 end
 
-private class FakePushClient
-  getter sent_requests = [] of NamedTuple(subscription: Crumble::Web::Push::Server::Subscription, payload: String)
-
-  def initialize(@status_codes_by_endpoint : Hash(String, Int32) = {} of String => Int32, @errors_by_endpoint : Hash(String, Int32) = {} of String => Int32)
+private class StubPushEndpoint
+  def initialize(@status_code : Int32, @response_body : String = %({"status":"ok"}))
   end
 
-  def send(subscription : Crumble::Web::Push::Server::Subscription, payload : String) : FakePushResponse
-    @sent_requests << {subscription: subscription, payload: payload}
-    raise FakePushError.new(@errors_by_endpoint[subscription.endpoint], "push failed for #{subscription.device_id}") if @errors_by_endpoint.has_key?(subscription.endpoint)
-    FakePushResponse.new(status_code: @status_codes_by_endpoint[subscription.endpoint]? || 201)
+  def response : HTTP::Client::Response
+    HTTP::Client::Response.new(@status_code, body: @response_body)
+  end
+end
+
+private class StubSenderClient < WebPush::Client
+  getter requests = [] of CapturedSenderRequest
+
+  def initialize(@stub_push_endpoint : StubPushEndpoint)
+    super(WebPush::VapidConfig.new(public_key: SENDER_TEST_PUBLIC_KEY, private_key: SENDER_TEST_PRIVATE_KEY, subject: SENDER_TEST_SUBJECT))
+  end
+
+  private def send_request(request : WebPush::PushRequest) : HTTP::Client::Response
+    @requests << CapturedSenderRequest.new(endpoint: request.endpoint, body: request.body)
+    @stub_push_endpoint.response
   end
 end
 
 describe Crumble::Web::Push::Server::Integration::Sender do
-  it "sends to every subscription loaded for a user" do
+  it "sends to every subscription loaded for a user through WebPush::Client" do
     adapter = SenderSpecSubscriptionAdapter.new
-    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", endpoint: "https://push.example/1", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-1", p256dh: "p256dh-1"))
-    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", endpoint: "https://push.example/2", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-2", p256dh: "p256dh-2"))
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", endpoint: "https://push.example/1", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
+    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", endpoint: "https://push.example/2", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(first_subscription)
     adapter.save(second_subscription)
-    client = FakePushClient.new
+    client = StubSenderClient.new(StubPushEndpoint.new(201))
     sender = Crumble::Web::Push::Server::Integration.sender(adapter, client)
 
-    outcomes = sender.send_to_user("user-1", %({"title":"Hello"}))
+    outcomes = sender.send_to_user("user-1", %({"title":"Hello"}), ttl: 60)
 
-    outcomes.map(&.status).should eq([Crumble::Web::Push::Server::Integration::SendOutcomeStatus::Sent, Crumble::Web::Push::Server::Integration::SendOutcomeStatus::Sent])
-    client.sent_requests.should eq([{subscription: first_subscription, payload: %({"title":"Hello"})}, {subscription: second_subscription, payload: %({"title":"Hello"})}])
+    outcomes.size.should eq(2)
+    outcomes.all?(&.sent?).should be_true
+    outcomes.all? { |outcome| outcome.result.not_nil!.state == WebPush::Client::SendState::Success }.should be_true
+    client.requests.map(&.endpoint).should eq(["https://push.example/1", "https://push.example/2"])
+    client.requests.all? { |request| request.body.bytesize > 0 }.should be_true
   end
 
-  it "marks invalid subscriptions for cleanup when the push client rejects them" do
+  it "surfaces invalid-subscription cleanup from WebPush::Client send results" do
     adapter = SenderSpecSubscriptionAdapter.new
-    invalid_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-3", endpoint: "https://push.example/invalid", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-3", p256dh: "p256dh-3"))
+    invalid_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-3", endpoint: "https://push.example/invalid", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(invalid_subscription)
-    sender = Crumble::Web::Push::Server::Integration.sender(adapter, FakePushClient.new(errors_by_endpoint: {"https://push.example/invalid" => 410}))
+    sender = Crumble::Web::Push::Server::Integration.sender(adapter, StubSenderClient.new(StubPushEndpoint.new(410)))
 
-    outcomes = sender.send_to_device("device-3", %({"title":"Cleanup"}))
+    outcome = sender.send_to_device("device-3", %({"title":"Cleanup"}), ttl: 30).first
 
-    outcomes.should eq([Crumble::Web::Push::Server::Integration::SendOutcome.new(subscription: invalid_subscription, status: Crumble::Web::Push::Server::Integration::SendOutcomeStatus::InvalidSubscription, status_code: 410, error_message: "push failed for device-3")])
-    outcomes.first.invalid_subscription?.should be_true
-    outcomes.first.cleanup?.should be_true
-    outcomes.first.sent?.should be_false
+    outcome.subscription.should eq(invalid_subscription)
+    outcome.result.not_nil!.state.should eq(WebPush::Client::SendState::InvalidSubscription)
+    outcome.invalid_subscription?.should be_true
+    outcome.cleanup?.should be_true
+    outcome.status_code.should eq(410)
+    outcome.error_message.should be_nil
   end
 end

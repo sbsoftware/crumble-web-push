@@ -8,14 +8,14 @@ describe Crumble::Web::Push do
   it "loads required dependency namespaces" do
     Crumble::Resource.name.should eq("Crumble::Resource")
     Stimulus::Controller.name.should eq("Stimulus::Controller")
-    Web::Push.name.should eq("Web::Push")
+    WebPush.name.should eq("WebPush")
   end
 
   it "provides client and server integration namespaces" do
     Crumble::Web::Push::Client::Integration.name.should eq("Crumble::Web::Push::Client::Integration")
     Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector.name.should eq("Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector")
     Crumble::Web::Push::Server::Integration.name.should eq("Crumble::Web::Push::Server::Integration")
-    Crumble::Web::Push::Server::Integration::Sender.name.should contain("Crumble::Web::Push::Server::Integration::Sender")
+    Crumble::Web::Push::Server::Integration::Sender.name.should eq("Crumble::Web::Push::Server::Integration::Sender")
   end
 
   it "exposes server subscription contracts and adapter interface" do
