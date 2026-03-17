@@ -15,10 +15,12 @@ describe Crumble::Web::Push do
     Crumble::Web::Push::Client::Integration.name.should eq("Crumble::Web::Push::Client::Integration")
     Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector.name.should eq("Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector")
     Crumble::Web::Push::Server::Integration.name.should eq("Crumble::Web::Push::Server::Integration")
+    Crumble::Web::Push::Server::Integration::Sender.name.should contain("Crumble::Web::Push::Server::Integration::Sender")
   end
 
   it "exposes server subscription contracts and adapter interface" do
     Crumble::Web::Push::Server::SubscriptionAdapter.name.should eq("Crumble::Web::Push::Server::SubscriptionAdapter")
     Crumble::Web::Push::Server::SubscriptionContract.name.should eq("Crumble::Web::Push::Server::SubscriptionContract")
+    Crumble::Web::Push::Server::Integration::SendOutcome.name.should eq("Crumble::Web::Push::Server::Integration::SendOutcome")
   end
 end
