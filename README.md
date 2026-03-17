@@ -24,6 +24,7 @@ require "crumble-web-push"
 - `Crumble::Web::Push::Client::Integration`
 - `Crumble::Web::Push::Server::Integration`
 - `Crumble::Web::Push::Server::Integration::Sender`
+- `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
 - `Crumble::Web::Push::Server::SubscriptionAdapter`
 - `Crumble::Web::Push::Server::SubscriptionContract`
 
@@ -48,7 +49,7 @@ Repeated composition for the same scope is idempotent and will not create compet
 This shard defines `CrumbleWebPush::SubscriptionController` via `stimulus_controller` and automatically attaches it to the `body` tag of `ToHtml::Layout`.
 
 The shard also adds default body-level Stimulus values automatically:
-- `endpoint_url` uses the current stub endpoint `"/__crumble_web_push_subscriptions__"`
+- `endpoint_url` points at `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
 - `vapid_public_key` reads `ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"]` and defaults to an empty string
 
 ```crystal
@@ -69,6 +70,8 @@ end
 ```
 
 The shard intentionally does not ship a DB implementation.
+
+Stored adapter entries wrap the upstream `WebPush::Subscription` while adding `user_id` and `device_id` for application-level ownership.
 
 ### Server-side sender facade
 
@@ -93,6 +96,21 @@ end
 ```
 
 The facade converts `Crumble::Web::Push::Server::Subscription` entries into `WebPush::Subscription` values and exposes `WebPush::Client::SendResult` helpers like `cleanup?` and `retryable?` through each returned outcome.
+
+### Subscription endpoint resource
+
+`Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource` is the default endpoint used by the Stimulus controller. Configure it with your adapter plus a request-to-identity resolver:
+
+```crystal
+Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.configure(adapter) do |ctx|
+  Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource::RequestIdentity.new(
+    user_id: ctx.session.user_id.to_s,
+    device_id: ctx.request.headers["X-Device-Id"]
+  )
+end
+```
+
+The browser posts `{action, subscription}` to this resource, and the resource resolves `user_id` / `device_id` server-side before calling the adapter.
 
 ### Subscription endpoint payload contract
 

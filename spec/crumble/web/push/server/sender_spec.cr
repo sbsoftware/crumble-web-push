@@ -62,8 +62,8 @@ end
 describe Crumble::Web::Push::Server::Integration::Sender do
   it "sends to every subscription loaded for a user through WebPush::Client" do
     adapter = SenderSpecSubscriptionAdapter.new
-    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", endpoint: "https://push.example/1", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
-    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", endpoint: "https://push.example/2", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
+    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/2", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(first_subscription)
     adapter.save(second_subscription)
     client = StubSenderClient.new(StubPushEndpoint.new(201))
@@ -80,7 +80,7 @@ describe Crumble::Web::Push::Server::Integration::Sender do
 
   it "surfaces invalid-subscription cleanup from WebPush::Client send results" do
     adapter = SenderSpecSubscriptionAdapter.new
-    invalid_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-3", endpoint: "https://push.example/invalid", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
+    invalid_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-3", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/invalid", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(invalid_subscription)
     sender = Crumble::Web::Push::Server::Integration.sender(adapter, StubSenderClient.new(StubPushEndpoint.new(410)))
 

@@ -1,6 +1,11 @@
 require "json"
 
 module Crumble::Web::Push::Server::SubscriptionContract
+  enum SyncAction
+    Subscribe
+    Unsubscribe
+  end
+
   class ValidationError < Exception
     getter errors : Array(String)
 
@@ -21,7 +26,7 @@ module Crumble::Web::Push::Server::SubscriptionContract
     end
 
     def to_subscription : Subscription
-      Subscription.new(user_id: user_id, device_id: device_id, endpoint: endpoint, keys: SubscriptionKeys.new(auth: auth, p256dh: p256dh))
+      Subscription.new(user_id: user_id, device_id: device_id, web_push_subscription: WebPush::Subscription.new(endpoint: endpoint, p256dh: p256dh, auth: auth))
     end
 
     private def validate!
@@ -62,6 +67,18 @@ module Crumble::Web::Push::Server::SubscriptionContract
     end
   end
 
+  struct SyncPayload
+    getter action : SyncAction
+    getter web_push_subscription : WebPush::Subscription
+
+    def initialize(@action : SyncAction, @web_push_subscription : WebPush::Subscription)
+    end
+
+    def to_subscription(user_id : String, device_id : String) : Subscription
+      Subscription.new(user_id: user_id, device_id: device_id, web_push_subscription: web_push_subscription)
+    end
+  end
+
   def self.parse_create(body : String) : CreatePayload
     parse_upsert(parse_json(body))
   end
@@ -72,6 +89,10 @@ module Crumble::Web::Push::Server::SubscriptionContract
 
   def self.parse_delete(body : String) : DeletePayload
     parse_delete_payload(parse_json(body))
+  end
+
+  def self.parse_sync(body : String) : SyncPayload
+    parse_sync_payload(parse_json(body))
   end
 
   private def self.parse_json(body : String) : JSON::Any
@@ -92,6 +113,25 @@ module Crumble::Web::Push::Server::SubscriptionContract
 
   private def self.parse_delete_payload(payload : JSON::Any) : DeletePayload
     DeletePayload.new(read_string(payload, "user_id", "userId"), read_string(payload, "device_id", "deviceId"))
+  end
+
+  private def self.parse_sync_payload(payload : JSON::Any) : SyncPayload
+    SyncPayload.new(read_sync_action(payload), read_web_push_subscription(payload, "subscription"))
+  end
+
+  private def self.read_sync_action(payload : JSON::Any) : SyncAction
+    case read_string(payload, "action")
+    when "subscribe"   then SyncAction::Subscribe
+    when "unsubscribe" then SyncAction::Unsubscribe
+    else
+      raise ValidationError.new(["action must be subscribe or unsubscribe"])
+    end
+  end
+
+  private def self.read_web_push_subscription(payload : JSON::Any, key : String) : WebPush::Subscription
+    WebPush::Subscription.from_json(read_hash(payload, key))
+  rescue ex : WebPush::ValidationError
+    raise ValidationError.new([ex.message || "#{key} is invalid"])
   end
 
   private def self.read_hash(payload : JSON::Any, key : String) : JSON::Any

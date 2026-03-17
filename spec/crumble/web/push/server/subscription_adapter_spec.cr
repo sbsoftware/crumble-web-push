@@ -26,9 +26,9 @@ end
 describe Crumble::Web::Push::Server::SubscriptionAdapter do
   it "supports save, list by user, list by device and delete" do
     adapter = TestSubscriptionAdapter.new
-    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", endpoint: "https://push.example/1", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-1", p256dh: "p256dh-1"))
-    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", endpoint: "https://push.example/2", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-2", p256dh: "p256dh-2"))
-    third_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-1", endpoint: "https://push.example/3", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-3", p256dh: "p256dh-3"))
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: "auth-1", p256dh: "p256dh-1"))
+    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/2", auth: "auth-2", p256dh: "p256dh-2"))
+    third_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/3", auth: "auth-3", p256dh: "p256dh-3"))
 
     adapter.save(first_subscription)
     adapter.save(second_subscription)
@@ -44,8 +44,8 @@ describe Crumble::Web::Push::Server::SubscriptionAdapter do
 
   it "allows save to replace a subscription for the same user and device" do
     adapter = TestSubscriptionAdapter.new
-    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", endpoint: "https://push.example/1", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-1", p256dh: "p256dh-1"))
-    updated_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", endpoint: "https://push.example/1-updated", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-1-updated", p256dh: "p256dh-1-updated"))
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: "auth-1", p256dh: "p256dh-1"))
+    updated_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1-updated", auth: "auth-1-updated", p256dh: "p256dh-1-updated"))
 
     adapter.save(first_subscription)
     adapter.save(updated_subscription)

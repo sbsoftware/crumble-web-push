@@ -16,6 +16,7 @@ describe Crumble::Web::Push do
     Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector.name.should eq("Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector")
     Crumble::Web::Push::Server::Integration.name.should eq("Crumble::Web::Push::Server::Integration")
     Crumble::Web::Push::Server::Integration::Sender.name.should eq("Crumble::Web::Push::Server::Integration::Sender")
+    Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.name.should eq("Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource")
   end
 
   it "exposes server subscription contracts and adapter interface" do

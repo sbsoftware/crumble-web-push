@@ -3,7 +3,7 @@ require "../../../../spec_helper"
 describe Crumble::Web::Push::Server::SubscriptionContract do
   it "parses create payload and converts it to a subscription" do
     payload = Crumble::Web::Push::Server::SubscriptionContract.parse_create(%({"user_id":"u-1","device_id":"d-1","endpoint":"https://push.example/1","keys":{"auth":"auth-1","p256dh":"p256dh-1"}}))
-    payload.to_subscription.should eq(Crumble::Web::Push::Server::Subscription.new(user_id: "u-1", device_id: "d-1", endpoint: "https://push.example/1", keys: Crumble::Web::Push::Server::SubscriptionKeys.new(auth: "auth-1", p256dh: "p256dh-1")))
+    payload.to_subscription.should eq(Crumble::Web::Push::Server::Subscription.new(user_id: "u-1", device_id: "d-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: "auth-1", p256dh: "p256dh-1")))
   end
 
   it "parses update payload with camelCase ids" do
@@ -19,6 +19,12 @@ describe Crumble::Web::Push::Server::SubscriptionContract do
     payload = Crumble::Web::Push::Server::SubscriptionContract.parse_delete(%({"user_id":"u-3","device_id":"d-3"}))
     payload.user_id.should eq("u-3")
     payload.device_id.should eq("d-3")
+  end
+
+  it "parses sync payloads into a web-push subscription" do
+    payload = Crumble::Web::Push::Server::SubscriptionContract.parse_sync(%({"action":"subscribe","subscription":{"endpoint":"https://push.example/5","keys":{"auth":"auth-5","p256dh":"p256dh-5"}}}))
+    payload.action.should eq(Crumble::Web::Push::Server::SubscriptionContract::SyncAction::Subscribe)
+    payload.to_subscription("u-5", "d-5").should eq(Crumble::Web::Push::Server::Subscription.new(user_id: "u-5", device_id: "d-5", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/5", auth: "auth-5", p256dh: "p256dh-5")))
   end
 
   it "rejects invalid json" do
@@ -39,5 +45,10 @@ describe Crumble::Web::Push::Server::SubscriptionContract do
   it "rejects blank values" do
     error = expect_raises(Crumble::Web::Push::Server::SubscriptionContract::ValidationError) { Crumble::Web::Push::Server::SubscriptionContract.parse_create(%({"user_id":"  ","device_id":"","endpoint":" ","keys":{"auth":" ","p256dh":""}})) }
     error.errors.should eq(["user_id is required", "device_id is required", "endpoint is required", "keys.auth is required", "keys.p256dh is required"])
+  end
+
+  it "rejects unsupported sync actions" do
+    error = expect_raises(Crumble::Web::Push::Server::SubscriptionContract::ValidationError) { Crumble::Web::Push::Server::SubscriptionContract.parse_sync(%({"action":"refresh","subscription":{"endpoint":"https://push.example/6","keys":{"auth":"auth-6","p256dh":"p256dh-6"}}})) }
+    error.errors.should eq(["action must be subscribe or unsubscribe"])
   end
 end
