@@ -42,6 +42,18 @@ Crumble::Web::Push::Client::Integration.push_service_worker(scope: "/notificatio
 
 Repeated composition for the same scope is idempotent and will not create competing registrations.
 
+### Push subscription controller
+
+This shard defines `CrumbleWebPush::SubscriptionController` via `stimulus_controller` and automatically attaches it to the `body` tag of `ToHtml::Layout`.
+
+The shard also adds default body-level Stimulus values automatically:
+- `endpoint_url` uses the current stub endpoint `"/__crumble_web_push_subscriptions__"`
+- `vapid_public_key` reads `ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"]` and defaults to an empty string
+
+```crystal
+ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"] = "your-vapid-public-key"
+```
+
 ### Storage adapter interface
 
 Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence backend:
