@@ -70,7 +70,7 @@ describe Crumble::Web::Push::Client::Integration do
       end
 
       html.should contain(%(data-controller="crumble-web-push--subscription"))
-      html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="/__crumble_web_push_subscriptions__"))
+      html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="#{Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.root_path}"))
       html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="BKf6v4Nf3F9"))
     ensure
       if previous_vapid_key.nil?

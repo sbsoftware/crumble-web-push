@@ -98,7 +98,7 @@ end
 module Crumble::Web::Push::Client
   module Integration
     DEFAULT_SERVICE_WORKER_SCOPE    = "/"
-    STUB_SUBSCRIPTION_ENDPOINT      = "/__crumble_web_push_subscriptions__"
+    DEFAULT_SUBSCRIPTION_ENDPOINT   = ::Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.root_path
     VAPID_PUBLIC_KEY_ENV            = "CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"
     DEFAULT_VAPID_PUBLIC_KEY        = ""
     DEFAULT_SUBSCRIPTION_CONTROLLER = ::CrumbleWebPush::SubscriptionController
@@ -161,5 +161,5 @@ module Crumble::Web::Push::Client
 end
 
 class ToHtml::Layout
-  body_attributes Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER, Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER.endpoint_url_value(Crumble::Web::Push::Client::Integration::STUB_SUBSCRIPTION_ENDPOINT), Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER.vapid_public_key_value(ENV.fetch(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV, Crumble::Web::Push::Client::Integration::DEFAULT_VAPID_PUBLIC_KEY))
+  body_attributes Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER, Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER.endpoint_url_value(Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_ENDPOINT), Crumble::Web::Push::Client::Integration::DEFAULT_SUBSCRIPTION_CONTROLLER.vapid_public_key_value(ENV.fetch(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV, Crumble::Web::Push::Client::Integration::DEFAULT_VAPID_PUBLIC_KEY))
 end

@@ -23,6 +23,8 @@ require "crumble-web-push"
 `crumble-web-push` provides:
 - `Crumble::Web::Push::Client::Integration`
 - `Crumble::Web::Push::Server::Integration`
+- `Crumble::Web::Push::Server::Integration::Sender`
+- `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
 - `Crumble::Web::Push::Server::SubscriptionAdapter`
 - `Crumble::Web::Push::Server::SubscriptionContract`
 
@@ -47,7 +49,7 @@ Repeated composition for the same scope is idempotent and will not create compet
 This shard defines `CrumbleWebPush::SubscriptionController` via `stimulus_controller` and automatically attaches it to the `body` tag of `ToHtml::Layout`.
 
 The shard also adds default body-level Stimulus values automatically:
-- `endpoint_url` uses the current stub endpoint `"/__crumble_web_push_subscriptions__"`
+- `endpoint_url` points at `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
 - `vapid_public_key` reads `ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"]` and defaults to an empty string
 
 ```crystal
@@ -61,13 +63,49 @@ Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence
 ```crystal
 abstract class Crumble::Web::Push::Server::SubscriptionAdapter
   abstract def save(subscription : Subscription) : Nil
-  abstract def delete(user_id : String, device_id : String) : Bool
-  abstract def list_by_user(user_id : String) : Array(Subscription)
-  abstract def list_by_device(device_id : String) : Array(Subscription)
+  abstract def delete(session_id : String) : Bool
+  abstract def list_by_session(session_id : String) : Array(Subscription)
 end
 ```
 
 The shard intentionally does not ship a DB implementation.
+
+Stored adapter entries wrap the upstream `WebPush::Subscription` while adding the owning `session_id`.
+
+### Server-side sender facade
+
+Use `Crumble::Web::Push::Server::Integration.sender` to bridge stored subscriptions into `WebPush::Client#send`:
+
+```crystal
+client = WebPush::Client.new(
+  WebPush::VapidConfig.new(
+    public_key: ENV["WEB_PUSH_PUBLIC_KEY"],
+    private_key: ENV["WEB_PUSH_PRIVATE_KEY"],
+    subject: "mailto:admin@example.com"
+  )
+)
+
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+sender = Crumble::Web::Push::Server::Integration.sender(client)
+outcomes = sender.send_to_session("session-id", %({"title":"Hello"}), ttl: 60)
+
+outcomes.each do |outcome|
+  next unless outcome.cleanup?
+  adapter.delete(outcome.subscription.session_id)
+end
+```
+
+The facade converts `Crumble::Web::Push::Server::Subscription` entries into `WebPush::Subscription` values and exposes `WebPush::Client::SendResult` helpers like `cleanup?` and `retryable?` through each returned outcome.
+
+### Subscription endpoint resource
+
+`Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource` is the default endpoint used by the Stimulus controller. Point the shared integration adapter at your persistence backend:
+
+```crystal
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+```
+
+The browser posts `{action, subscription}` to this resource, and the resource always uses `ctx.session.id.to_s` as the stored subscription identity before calling the adapter.
 
 ### Subscription endpoint payload contract
 
@@ -80,8 +118,7 @@ Create/update payload:
 
 ```json
 {
-  "user_id": "user-1",
-  "device_id": "device-1",
+  "session_id": "session-1",
   "endpoint": "https://push.example/subscription",
   "keys": {
     "auth": "base64-auth",
@@ -94,12 +131,11 @@ Delete payload:
 
 ```json
 {
-  "user_id": "user-1",
-  "device_id": "device-1"
+  "session_id": "session-1"
 }
 ```
 
-`userId`/`deviceId` camelCase keys are also accepted for browser-facing payloads.
+`sessionId` camelCase keys are also accepted for browser-facing payloads.
 
 ## Contributing
 
@@ -112,3 +148,16 @@ Delete payload:
 ## Contributors
 
 - [Stefan Bilharz](https://github.com/your-github-user) - creator and maintainer
+
+### Subscription endpoint payload contract
+
+`Crumble::Web::Push::Server::SubscriptionContract` validates and parses endpoint payloads:
+- `parse_create(body : String)` for create payloads
+- `parse_update(body : String)` for update payloads
+- `parse_delete(body : String)` for delete payloads
+
+Create/update payload:
+
+```json
+{
+  "session_id": "session-1",
