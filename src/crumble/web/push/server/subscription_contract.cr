@@ -15,18 +15,17 @@ module Crumble::Web::Push::Server::SubscriptionContract
   end
 
   struct UpsertPayload
-    getter user_id : String
-    getter device_id : String
+    getter session_id : String
     getter endpoint : String
     getter auth : String
     getter p256dh : String
 
-    def initialize(@user_id : String, @device_id : String, @endpoint : String, @auth : String, @p256dh : String)
+    def initialize(@session_id : String, @endpoint : String, @auth : String, @p256dh : String)
       validate!
     end
 
     def to_subscription : Subscription
-      Subscription.new(user_id: user_id, device_id: device_id, web_push_subscription: WebPush::Subscription.new(endpoint: endpoint, p256dh: p256dh, auth: auth))
+      Subscription.new(session_id: session_id, web_push_subscription: WebPush::Subscription.new(endpoint: endpoint, p256dh: p256dh, auth: auth))
     end
 
     private def validate!
@@ -35,8 +34,7 @@ module Crumble::Web::Push::Server::SubscriptionContract
 
     private def validation_errors : Array(String)
       errors = [] of String
-      errors << "user_id is required" if user_id.strip.empty?
-      errors << "device_id is required" if device_id.strip.empty?
+      errors << "session_id is required" if session_id.strip.empty?
       errors << "endpoint is required" if endpoint.strip.empty?
       errors << "keys.auth is required" if auth.strip.empty?
       errors << "keys.p256dh is required" if p256dh.strip.empty?
@@ -48,10 +46,9 @@ module Crumble::Web::Push::Server::SubscriptionContract
   alias UpdatePayload = UpsertPayload
 
   struct DeletePayload
-    getter user_id : String
-    getter device_id : String
+    getter session_id : String
 
-    def initialize(@user_id : String, @device_id : String)
+    def initialize(@session_id : String)
       validate!
     end
 
@@ -61,8 +58,7 @@ module Crumble::Web::Push::Server::SubscriptionContract
 
     private def validation_errors : Array(String)
       errors = [] of String
-      errors << "user_id is required" if user_id.strip.empty?
-      errors << "device_id is required" if device_id.strip.empty?
+      errors << "session_id is required" if session_id.strip.empty?
       errors
     end
   end
@@ -74,8 +70,8 @@ module Crumble::Web::Push::Server::SubscriptionContract
     def initialize(@action : SyncAction, @web_push_subscription : WebPush::Subscription)
     end
 
-    def to_subscription(user_id : String, device_id : String) : Subscription
-      Subscription.new(user_id: user_id, device_id: device_id, web_push_subscription: web_push_subscription)
+    def to_subscription(session_id : String) : Subscription
+      Subscription.new(session_id: session_id, web_push_subscription: web_push_subscription)
     end
   end
 
@@ -103,8 +99,7 @@ module Crumble::Web::Push::Server::SubscriptionContract
 
   private def self.parse_upsert(payload : JSON::Any) : UpsertPayload
     UpsertPayload.new(
-      read_string(payload, "user_id", "userId"),
-      read_string(payload, "device_id", "deviceId"),
+      read_string(payload, "session_id", "sessionId"),
       read_string(payload, "endpoint"),
       read_string(read_hash(payload, "keys"), "auth"),
       read_string(read_hash(payload, "keys"), "p256dh")
@@ -112,7 +107,7 @@ module Crumble::Web::Push::Server::SubscriptionContract
   end
 
   private def self.parse_delete_payload(payload : JSON::Any) : DeletePayload
-    DeletePayload.new(read_string(payload, "user_id", "userId"), read_string(payload, "device_id", "deviceId"))
+    DeletePayload.new(read_string(payload, "session_id", "sessionId"))
   end
 
   private def self.parse_sync_payload(payload : JSON::Any) : SyncPayload

@@ -63,15 +63,14 @@ Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence
 ```crystal
 abstract class Crumble::Web::Push::Server::SubscriptionAdapter
   abstract def save(subscription : Subscription) : Nil
-  abstract def delete(user_id : String, device_id : String) : Bool
-  abstract def list_by_user(user_id : String) : Array(Subscription)
-  abstract def list_by_device(device_id : String) : Array(Subscription)
+  abstract def delete(session_id : String) : Bool
+  abstract def list_by_session(session_id : String) : Array(Subscription)
 end
 ```
 
 The shard intentionally does not ship a DB implementation.
 
-Stored adapter entries wrap the upstream `WebPush::Subscription` while adding `user_id` and `device_id` for application-level ownership.
+Stored adapter entries wrap the upstream `WebPush::Subscription` while adding the owning `session_id`.
 
 ### Server-side sender facade
 
@@ -87,11 +86,11 @@ client = WebPush::Client.new(
 )
 
 sender = Crumble::Web::Push::Server::Integration.sender(adapter, client)
-outcomes = sender.send_to_user("user-1", %({"title":"Hello"}), ttl: 60)
+outcomes = sender.send_to_session("session-id", %({"title":"Hello"}), ttl: 60)
 
 outcomes.each do |outcome|
   next unless outcome.cleanup?
-  adapter.delete(outcome.subscription.user_id, outcome.subscription.device_id)
+  adapter.delete(outcome.subscription.session_id)
 end
 ```
 
@@ -99,18 +98,13 @@ The facade converts `Crumble::Web::Push::Server::Subscription` entries into `Web
 
 ### Subscription endpoint resource
 
-`Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource` is the default endpoint used by the Stimulus controller. Configure it with your adapter plus a request-to-identity resolver:
+`Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource` is the default endpoint used by the Stimulus controller. Point the shared integration adapter at your persistence backend:
 
 ```crystal
-Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.configure(adapter) do |ctx|
-  Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource::RequestIdentity.new(
-    user_id: ctx.session.user_id.to_s,
-    device_id: ctx.request.headers["X-Device-Id"]
-  )
-end
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
 ```
 
-The browser posts `{action, subscription}` to this resource, and the resource resolves `user_id` / `device_id` server-side before calling the adapter.
+The browser posts `{action, subscription}` to this resource, and the resource always uses `ctx.session.id.to_s` as the stored subscription identity before calling the adapter.
 
 ### Subscription endpoint payload contract
 
@@ -123,8 +117,7 @@ Create/update payload:
 
 ```json
 {
-  "user_id": "user-1",
-  "device_id": "device-1",
+  "session_id": "session-1",
   "endpoint": "https://push.example/subscription",
   "keys": {
     "auth": "base64-auth",
@@ -137,12 +130,11 @@ Delete payload:
 
 ```json
 {
-  "user_id": "user-1",
-  "device_id": "device-1"
+  "session_id": "session-1"
 }
 ```
 
-`userId`/`deviceId` camelCase keys are also accepted for browser-facing payloads.
+`sessionId` camelCase keys are also accepted for browser-facing payloads.
 
 ## Contributing
 

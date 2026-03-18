@@ -1,5 +1,5 @@
 module Crumble::Web::Push::Server
-  record Subscription, user_id : String, device_id : String, web_push_subscription : WebPush::Subscription do
+  record Subscription, session_id : String, web_push_subscription : WebPush::Subscription do
     def to_web_push_subscription : WebPush::Subscription
       web_push_subscription
     end

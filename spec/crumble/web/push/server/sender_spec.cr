@@ -10,22 +10,18 @@ private class SenderSpecSubscriptionAdapter < Crumble::Web::Push::Server::Subscr
   @subscriptions = [] of Crumble::Web::Push::Server::Subscription
 
   def save(subscription : Crumble::Web::Push::Server::Subscription) : Nil
-    @subscriptions.reject! { |entry| entry.user_id == subscription.user_id && entry.device_id == subscription.device_id }
+    @subscriptions.reject! { |entry| entry.session_id == subscription.session_id }
     @subscriptions << subscription
   end
 
-  def delete(user_id : String, device_id : String) : Bool
+  def delete(session_id : String) : Bool
     size_before_delete = @subscriptions.size
-    @subscriptions.reject! { |entry| entry.user_id == user_id && entry.device_id == device_id }
+    @subscriptions.reject! { |entry| entry.session_id == session_id }
     @subscriptions.size < size_before_delete
   end
 
-  def list_by_user(user_id : String) : Array(Crumble::Web::Push::Server::Subscription)
-    @subscriptions.select { |entry| entry.user_id == user_id }
-  end
-
-  def list_by_device(device_id : String) : Array(Crumble::Web::Push::Server::Subscription)
-    @subscriptions.select { |entry| entry.device_id == device_id }
+  def list_by_session(session_id : String) : Array(Crumble::Web::Push::Server::Subscription)
+    @subscriptions.select { |entry| entry.session_id == session_id }
   end
 end
 
@@ -60,31 +56,29 @@ private class StubSenderClient < WebPush::Client
 end
 
 describe Crumble::Web::Push::Server::Integration::Sender do
-  it "sends to every subscription loaded for a user through WebPush::Client" do
+  it "sends the subscription loaded for a session through WebPush::Client" do
     adapter = SenderSpecSubscriptionAdapter.new
-    first_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
-    second_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-1", device_id: "device-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/2", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(first_subscription)
-    adapter.save(second_subscription)
     client = StubSenderClient.new(StubPushEndpoint.new(201))
     sender = Crumble::Web::Push::Server::Integration.sender(adapter, client)
 
-    outcomes = sender.send_to_user("user-1", %({"title":"Hello"}), ttl: 60)
+    outcomes = sender.send_to_session("session-1", %({"title":"Hello"}), ttl: 60)
 
-    outcomes.size.should eq(2)
+    outcomes.size.should eq(1)
     outcomes.all?(&.sent?).should be_true
     outcomes.all? { |outcome| outcome.result.not_nil!.state == WebPush::Client::SendState::Success }.should be_true
-    client.requests.map(&.endpoint).should eq(["https://push.example/1", "https://push.example/2"])
+    client.requests.map(&.endpoint).should eq(["https://push.example/1"])
     client.requests.all? { |request| request.body.bytesize > 0 }.should be_true
   end
 
   it "surfaces invalid-subscription cleanup from WebPush::Client send results" do
     adapter = SenderSpecSubscriptionAdapter.new
-    invalid_subscription = Crumble::Web::Push::Server::Subscription.new(user_id: "user-2", device_id: "device-3", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/invalid", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
+    invalid_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/invalid", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(invalid_subscription)
     sender = Crumble::Web::Push::Server::Integration.sender(adapter, StubSenderClient.new(StubPushEndpoint.new(410)))
 
-    outcome = sender.send_to_device("device-3", %({"title":"Cleanup"}), ttl: 30).first
+    outcome = sender.send_to_session("session-2", %({"title":"Cleanup"}), ttl: 30).first
 
     outcome.subscription.should eq(invalid_subscription)
     outcome.result.not_nil!.state.should eq(WebPush::Client::SendState::InvalidSubscription)

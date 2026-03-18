@@ -33,12 +33,8 @@ module Crumble::Web::Push::Server::Integration
     def initialize(@adapter : SubscriptionAdapter, @client : WebPush::Client)
     end
 
-    def send_to_user(user_id : String, payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)
-      send_subscriptions(@adapter.list_by_user(user_id), payload, ttl: ttl, expires_at: expires_at, now: now)
-    end
-
-    def send_to_device(device_id : String, payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)
-      send_subscriptions(@adapter.list_by_device(device_id), payload, ttl: ttl, expires_at: expires_at, now: now)
+    def send_to_session(session_id : String, payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)
+      send_subscriptions(@adapter.list_by_session(session_id), payload, ttl: ttl, expires_at: expires_at, now: now)
     end
 
     def send_subscriptions(subscriptions : Enumerable(Subscription), payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)
