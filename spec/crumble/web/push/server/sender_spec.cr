@@ -56,12 +56,17 @@ private class StubSenderClient < WebPush::Client
 end
 
 describe Crumble::Web::Push::Server::Integration::Sender do
+  after_each do
+    Crumble::Web::Push::Server::Integration.reset!
+  end
+
   it "sends the subscription loaded for a session through WebPush::Client" do
     adapter = SenderSpecSubscriptionAdapter.new
     first_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(first_subscription)
     client = StubSenderClient.new(StubPushEndpoint.new(201))
-    sender = Crumble::Web::Push::Server::Integration.sender(adapter, client)
+    Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+    sender = Crumble::Web::Push::Server::Integration.sender(client)
 
     outcomes = sender.send_to_session("session-1", %({"title":"Hello"}), ttl: 60)
 
@@ -76,7 +81,8 @@ describe Crumble::Web::Push::Server::Integration::Sender do
     adapter = SenderSpecSubscriptionAdapter.new
     invalid_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/invalid", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(invalid_subscription)
-    sender = Crumble::Web::Push::Server::Integration.sender(adapter, StubSenderClient.new(StubPushEndpoint.new(410)))
+    Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+    sender = Crumble::Web::Push::Server::Integration.sender(StubSenderClient.new(StubPushEndpoint.new(410)))
 
     outcome = sender.send_to_session("session-2", %({"title":"Cleanup"}), ttl: 30).first
 

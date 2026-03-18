@@ -85,7 +85,8 @@ client = WebPush::Client.new(
   )
 )
 
-sender = Crumble::Web::Push::Server::Integration.sender(adapter, client)
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+sender = Crumble::Web::Push::Server::Integration.sender(client)
 outcomes = sender.send_to_session("session-id", %({"title":"Hello"}), ttl: 60)
 
 outcomes.each do |outcome|
@@ -147,3 +148,16 @@ Delete payload:
 ## Contributors
 
 - [Stefan Bilharz](https://github.com/your-github-user) - creator and maintainer
+
+### Subscription endpoint payload contract
+
+`Crumble::Web::Push::Server::SubscriptionContract` validates and parses endpoint payloads:
+- `parse_create(body : String)` for create payloads
+- `parse_update(body : String)` for update payloads
+- `parse_delete(body : String)` for delete payloads
+
+Create/update payload:
+
+```json
+{
+  "session_id": "session-1",

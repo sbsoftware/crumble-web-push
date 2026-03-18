@@ -30,11 +30,11 @@ module Crumble::Web::Push::Server::Integration
   end
 
   class Sender
-    def initialize(@adapter : SubscriptionAdapter, @client : WebPush::Client)
+    def initialize(@client : WebPush::Client)
     end
 
     def send_to_session(session_id : String, payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)
-      send_subscriptions(@adapter.list_by_session(session_id), payload, ttl: ttl, expires_at: expires_at, now: now)
+      send_subscriptions(Integration.subscription_adapter.list_by_session(session_id), payload, ttl: ttl, expires_at: expires_at, now: now)
     end
 
     def send_subscriptions(subscriptions : Enumerable(Subscription), payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)

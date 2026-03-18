@@ -13,11 +13,12 @@ module Crumble::Web::Push::Server
     @@subscription_adapter : SubscriptionAdapter?
 
     def self.sender(adapter : SubscriptionAdapter, client : WebPush::Client) : Sender
-      Sender.new(adapter, client)
+      self.subscription_adapter = adapter
+      sender(client)
     end
 
     def self.sender(client : WebPush::Client) : Sender
-      Sender.new(subscription_adapter, client)
+      Sender.new(client)
     end
 
     def self.subscription_adapter=(adapter : SubscriptionAdapter) : SubscriptionAdapter
