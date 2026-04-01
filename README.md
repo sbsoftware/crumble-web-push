@@ -68,21 +68,10 @@ The example shows the complete local flow:
 
 ## API Overview
 
-### Push worker connector
+### Push worker registration
 
 The shard automatically registers the default root-scope push worker when it is required in a Crumble app.
-
-Use `Crumble::Web::Push::Client::Integration` to compose the push worker into an app-level composition target that implements `service_worker(scope : String, & : -> String)`:
-
-```crystal
-Crumble::Web::Push::Client::Integration.push_service_worker.compose(app_composition)
-```
-
-Override the scope when needed:
-
-```crystal
-Crumble::Web::Push::Client::Integration.push_service_worker(scope: "/notifications").compose(app_composition)
-```
+No extra worker setup is needed in application code.
 
 ### Subscription controller
 
