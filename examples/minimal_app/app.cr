@@ -64,25 +64,23 @@ module Crumble::Web::Push::Examples
 
       layout ToHtml::Layout
 
-      view do
-        template do
-          main do
-            h1 { "Crumble Web Push Example" }
-            p { "This page wires worker registration, the shared subscription endpoint, and a server-side test push trigger." }
-            ul do
-              li { "Subscription endpoint: #{::Crumble::Web::Push::Server::Integration.subscription_endpoint_resource.uri_path}" }
-              li { "Test push endpoint: #{::Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path}" }
-            end
-            button ::CrumbleWebPush::SubscriptionController.subscribe_action("click"), type: "button" do
-              "Subscribe this browser"
-            end
-            button ::CrumbleWebPush::SubscriptionController.unsubscribe_action("click"), type: "button" do
-              "Unsubscribe this browser"
-            end
-            form action: ::Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path, method: "POST" do
-              button type: "submit" do
-                "Send test push"
-              end
+      template do
+        main do
+          h1 { "Crumble Web Push Example" }
+          p { "This page wires worker registration, the shared subscription endpoint, and a server-side test push trigger." }
+          ul do
+            li { "Subscription endpoint: #{::Crumble::Web::Push::Server::Integration.subscription_endpoint_resource.uri_path}" }
+            li { "Test push endpoint: #{::Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path}" }
+          end
+          button ::CrumbleWebPush::SubscriptionController.subscribe_action("click"), type: "button" do
+            "Subscribe this browser"
+          end
+          button ::CrumbleWebPush::SubscriptionController.unsubscribe_action("click"), type: "button" do
+            "Unsubscribe this browser"
+          end
+          form action: ::Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path, method: "POST" do
+            button type: "submit" do
+              "Send test push"
             end
           end
         end
@@ -134,25 +132,5 @@ module Crumble::Web::Push::Examples
       puts "Open http://localhost:#{::Crumble::Server.port}#{NotificationsPage.uri_path}"
       ::Crumble::Server.start
     end
-  end
-end
-
-register_service_worker do
-  self.addEventListener("push") do |event|
-    if event && event.data
-      payload = event.data.json._call
-      self.registration.showNotification(payload.title || "Notification", {body: payload.body || "", icon: payload.icon, data: payload.data})
-    end
-  end
-
-  self.addEventListener("notificationclick") do |event|
-    event.notification.close._call
-    event.waitUntil(clients.matchAll(type: "window", includeUncontrolled: true).then do |client_list|
-      if client_list.length > 0
-        client_list[0].focus._call
-      else
-        clients.openWindow(Crumble::Web::Push::Examples::MinimalApp::NotificationsPage.uri_path.to_js_ref)
-      end
-    end)
   end
 end

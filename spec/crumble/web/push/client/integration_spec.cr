@@ -72,6 +72,7 @@ describe Crumble::Web::Push::Client::Integration do
       html.should contain(%(data-controller="crumble-web-push--subscription"))
       html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="#{Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.root_path}"))
       html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="BKf6v4Nf3F9"))
+      html.should contain(%(navigator.serviceWorker.register("/service_worker.js", {scope: "/"})))
     ensure
       if previous_vapid_key.nil?
         ENV.delete(Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV)

@@ -43,7 +43,7 @@ describe Crumble::Web::Push::Examples::MinimalApp do
     Crumble::Web::Push::Server::Integration.reset!
   end
 
-  it "renders the example page with the registered worker, subscription controls, and test push form" do
+  it "renders the example page with the integration-owned worker, subscription controls, and test push form" do
     previous_vapid_key = ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV]?
     begin
       ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = EXAMPLE_TEST_PUBLIC_KEY
@@ -59,7 +59,7 @@ describe Crumble::Web::Push::Examples::MinimalApp do
       html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="#{Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.uri_path}"))
       html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="#{EXAMPLE_TEST_PUBLIC_KEY}"))
       html.should contain("navigator.serviceWorker.register")
-      html.should contain("/service_worker_")
+      html.should contain(%(navigator.serviceWorker.register("/service_worker.js", {scope: "/"})))
       html.should contain(%(click->crumble-web-push--subscription#subscribe))
       html.should contain(%(click->crumble-web-push--subscription#unsubscribe))
       html.should contain(%(action="#{Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path}"))
