@@ -103,28 +103,6 @@ module Crumble::Web::Push::Client
     DEFAULT_VAPID_PUBLIC_KEY        = ""
     DEFAULT_SUBSCRIPTION_CONTROLLER = ::CrumbleWebPush::SubscriptionController
 
-    class PushServiceWorkerSource < JS::File
-      js_fragment do
-        self.addEventListener("push") do |event|
-          if event && event.data
-            payload = event.data.json._call
-            self.registration.showNotification(payload.title || "Notification", {body: payload.body || "", icon: payload.icon, data: payload.data})
-          end
-        end
-
-        self.addEventListener("notificationclick") do |event|
-          event.notification.close._call
-          event.waitUntil(clients.matchAll(type: "window", includeUncontrolled: true).then do |client_list|
-            if client_list.length > 0
-              client_list[0].focus._call
-            else
-              clients.openWindow("/")
-            end
-          end)
-        end
-      end
-    end
-
     @@registrations_by_target = Hash(UInt64, Set(String)).new { |registrations, target| registrations[target] = Set(String).new }
 
     class PushServiceWorkerConnector
@@ -155,7 +133,8 @@ module Crumble::Web::Push::Client
     end
 
     def self.push_service_worker_source : String
-      PushServiceWorkerSource.to_js
+      "self.addEventListener(\"push\", function(event) {if (event && event.data) {payload = event.data.json();self.registration.showNotification(payload.title || \"Notification\", {body: payload.body || \"\", icon: payload.icon, data: payload.data});}});" +
+        "self.addEventListener(\"notificationclick\", function(event) {event.notification.close();event.waitUntil(clients.matchAll({type: \"window\", includeUncontrolled: true}).then(function(client_list) {if (client_list.length > 0) {client_list[0].focus();} else {clients.openWindow(\"/\");}}));});"
     end
 
     service_worker(scope: "/") do
