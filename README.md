@@ -47,7 +47,7 @@ Bridge shard that wires Crumble applications to generic Web Push primitives.
 
 A runnable local example lives in `examples/minimal_app/`:
 
-- `examples/minimal_app/app.cr` defines the page, the test-push resource, the in-memory adapter, and the worker registration bridge.
+- `examples/minimal_app/app.cr` defines the page, the test-push resource, the in-memory adapter, and the worker registration macro call.
 - `examples/minimal_app/run.cr` boots the example with env-based VAPID config.
 
 Start it locally with:
@@ -62,7 +62,7 @@ crystal run examples/minimal_app/run.cr -- --port 3000
 Then open `http://localhost:3000/push_example`.
 
 The example shows the complete local flow:
-1. The client connector composes a push-capable worker and registers it in the example layout.
+1. Crumble's global `register_service_worker` macro registers the push-capable worker automatically.
 2. The body-level Stimulus controller posts subscribe/unsubscribe changes to `SubscriptionEndpointResource`.
 3. `TestPushesResource` loads the current session's stored subscription and sends a test push through the sender facade.
 

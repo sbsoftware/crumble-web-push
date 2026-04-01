@@ -59,7 +59,7 @@ describe Crumble::Web::Push::Examples::MinimalApp do
       html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="#{Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.uri_path}"))
       html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="#{EXAMPLE_TEST_PUBLIC_KEY}"))
       html.should contain("navigator.serviceWorker.register")
-      html.should contain(Crumble::Web::Push::Examples::MinimalApp.service_worker_asset.uri_path)
+      html.should contain("/service_worker_")
       html.should contain(%(click->crumble-web-push--subscription#subscribe))
       html.should contain(%(click->crumble-web-push--subscription#unsubscribe))
       html.should contain(%(action="#{Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path}"))

@@ -6,39 +6,6 @@ module Crumble::Web::Push::Examples
     VAPID_PRIVATE_KEY_ENV = "CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY"
     VAPID_SUBJECT_ENV     = "CRUMBLE_WEB_PUSH_VAPID_SUBJECT"
 
-    # Bridge the connector facade into a plain Crumble asset so the example stays runnable.
-    class ServiceWorkerComposition
-      getter scope : String?
-      getter asset_file : JavascriptFile?
-
-      def service_worker(scope : String, & : -> String) : Nil
-        @scope = scope
-        @asset_file ||= JavascriptFile.new("/push_example_service_worker.js", yield)
-      end
-    end
-
-    SERVICE_WORKER_COMPOSITION = ServiceWorkerComposition.new.tap { |composition| ::Crumble::Web::Push::Client::Integration.push_service_worker.compose(composition) }
-
-    def self.service_worker_scope : String
-      SERVICE_WORKER_COMPOSITION.scope || ::Crumble::Web::Push::Client::Integration::DEFAULT_SERVICE_WORKER_SCOPE
-    end
-
-    def self.service_worker_asset : JavascriptFile
-      SERVICE_WORKER_COMPOSITION.asset_file || raise "Push example service worker is not configured"
-    end
-
-    class ServiceWorkerRegistration < JS::Code
-      def_to_js do
-        if navigator.serviceWorker
-          navigator.serviceWorker.register(::Crumble::Web::Push::Examples::MinimalApp.service_worker_asset.uri_path.to_js_ref, {scope: ::Crumble::Web::Push::Examples::MinimalApp.service_worker_scope.to_js_ref})
-        end
-      end
-    end
-
-    class Layout < ToHtml::Layout
-      append_to_head ServiceWorkerRegistration
-    end
-
     class MemorySubscriptionAdapter < ::Crumble::Web::Push::Server::SubscriptionAdapter
       @subscriptions = {} of String => ::Crumble::Web::Push::Server::Subscription
 
@@ -95,7 +62,7 @@ module Crumble::Web::Push::Examples
     class NotificationsPage < ::Crumble::Page
       root_path "/push_example"
 
-      layout Layout
+      layout ToHtml::Layout
 
       view do
         template do
@@ -103,7 +70,6 @@ module Crumble::Web::Push::Examples
             h1 { "Crumble Web Push Example" }
             p { "This page wires worker registration, the shared subscription endpoint, and a server-side test push trigger." }
             ul do
-              li { "Service worker scope: #{::Crumble::Web::Push::Examples::MinimalApp.service_worker_scope}" }
               li { "Subscription endpoint: #{::Crumble::Web::Push::Server::Integration.subscription_endpoint_resource.uri_path}" }
               li { "Test push endpoint: #{::Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path}" }
             end
@@ -168,5 +134,25 @@ module Crumble::Web::Push::Examples
       puts "Open http://localhost:#{::Crumble::Server.port}#{NotificationsPage.uri_path}"
       ::Crumble::Server.start
     end
+  end
+end
+
+register_service_worker do
+  self.addEventListener("push") do |event|
+    if event && event.data
+      payload = event.data.json._call
+      self.registration.showNotification(payload.title || "Notification", {body: payload.body || "", icon: payload.icon, data: payload.data})
+    end
+  end
+
+  self.addEventListener("notificationclick") do |event|
+    event.notification.close._call
+    event.waitUntil(clients.matchAll(type: "window", includeUncontrolled: true).then do |client_list|
+      if client_list.length > 0
+        client_list[0].focus._call
+      else
+        clients.openWindow(Crumble::Web::Push::Examples::MinimalApp::NotificationsPage.uri_path.to_js_ref)
+      end
+    end)
   end
 end
