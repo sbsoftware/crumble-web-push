@@ -25,8 +25,8 @@ Bridge shard that wires Crumble applications to generic Web Push primitives.
 - Generate one VAPID key pair and keep it stable for active subscriptions.
 - Set `CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY` for the browser-facing controller.
 - Configure a `Crumble::Web::Push::Server::SubscriptionAdapter` for persistence.
-- Build a `WebPush::Client` with your VAPID public key, private key, and subject.
-- Trigger sends through `Crumble::Web::Push::Server::Integration.sender(...)`.
+- Set `CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY` and `CRUMBLE_WEB_PUSH_VAPID_SUBJECT` for server-side delivery.
+- Trigger sends through `Crumble::Web::Push::Server::Integration.sender`.
 - Remove stored subscriptions when a send outcome reports `cleanup?`.
 
 ## Responsibilities
@@ -35,6 +35,7 @@ Bridge shard that wires Crumble applications to generic Web Push primitives.
 - service worker source generation through `Crumble::Web::Push::Client::Integration`
 - the Stimulus subscription controller attached to `ToHtml::Layout`
 - the default subscription sync endpoint at `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
+- ENV-backed `WebPush::Client` construction for the default sender facade
 - adapting stored Crumble subscriptions into `WebPush::Client#send` via `Crumble::Web::Push::Server::Integration::Sender`
 
 `web-push` owns the delivery primitives:
@@ -108,22 +109,19 @@ The shard intentionally does not ship a database implementation.
 Use `Crumble::Web::Push::Server::Integration.sender` to bridge stored subscriptions into `WebPush::Client#send`:
 
 ```crystal
-client = WebPush::Client.new(
-  WebPush::VapidConfig.new(
-    public_key: ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"],
-    private_key: ENV["CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY"],
-    subject: ENV["CRUMBLE_WEB_PUSH_VAPID_SUBJECT"]
-  )
-)
-
 Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
-sender = Crumble::Web::Push::Server::Integration.sender(client)
+sender = Crumble::Web::Push::Server::Integration.sender
 outcomes = sender.send_to_session("session-id", %({"title":"Hello"}), ttl: 60)
 
 outcomes.each do |outcome|
   adapter.delete(outcome.subscription.session_id) if outcome.cleanup?
 end
 ```
+
+The default sender reads:
+- `CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY`
+- `CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY`
+- `CRUMBLE_WEB_PUSH_VAPID_SUBJECT`
 
 Each outcome exposes the upstream `WebPush::Client::SendResult` helpers through:
 - `sent?`

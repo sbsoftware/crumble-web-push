@@ -47,7 +47,7 @@ describe Crumble::Web::Push::Examples::MinimalApp do
     previous_vapid_key = ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV]?
     begin
       ENV[Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV] = EXAMPLE_TEST_PUBLIC_KEY
-      Crumble::Web::Push::Examples::MinimalApp.configure!(adapter: Crumble::Web::Push::Examples::MinimalApp::MemorySubscriptionAdapter.new, sender: Crumble::Web::Push::Server::Integration.sender(ExampleStubSenderClient.new(ExampleStubPushEndpoint.new(201))))
+      Crumble::Web::Push::Examples::MinimalApp.configure!(adapter: Crumble::Web::Push::Examples::MinimalApp::MemorySubscriptionAdapter.new)
 
       html = String.build do |io|
         ctx = Crumble::Server::TestRequestContext.new(response_io: io, resource: Crumble::Web::Push::Examples::MinimalApp::NotificationsPage.uri_path)
@@ -74,32 +74,39 @@ describe Crumble::Web::Push::Examples::MinimalApp do
 
   it "supports the local subscribe then send test-push flow" do
     adapter = Crumble::Web::Push::Examples::MinimalApp::MemorySubscriptionAdapter.new
-    client = ExampleStubSenderClient.new(ExampleStubPushEndpoint.new(201))
-    Crumble::Web::Push::Examples::MinimalApp.configure!(adapter: adapter, sender: Crumble::Web::Push::Server::Integration.sender(client))
     session_store = Crumble::Server::MemorySessionStore.new
-    subscribe_body = %({"action":"subscribe","subscription":{"endpoint":"https://push.example/test","keys":{"auth":"#{EXAMPLE_TEST_AUTH}","p256dh":"#{EXAMPLE_TEST_P256DH}"}}})
+    client = ExampleStubSenderClient.new(ExampleStubPushEndpoint.new(201))
     session_cookie = nil
 
-    subscribe_response = IO::Memory.new
-    ctx = Crumble::Server::TestRequestContext.new(response_io: subscribe_response, session_store: session_store, resource: Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.uri_path, method: "POST", body: subscribe_body)
-    Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.handle(ctx)
-    ctx.response.close
-    ctx.response.status_code.should eq(204)
-    session_cookie = ctx.response.cookies.first?
+    begin
+      Crumble::Web::Push::Examples::MinimalApp.configure!(adapter: adapter)
+      Crumble::Web::Push::Server::Integration.sender_override = Crumble::Web::Push::Server::Integration.sender(client)
 
-    test_push_response = IO::Memory.new
-    headers = HTTP::Headers{"Cookie" => "#{session_cookie.not_nil!.name}=#{session_cookie.not_nil!.value}"}
-    ctx = Crumble::Server::TestRequestContext.new(response_io: test_push_response, session_store: session_store, headers: headers, resource: Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path, method: "POST")
-    Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.handle(ctx).should eq(true)
-    ctx.response.close
-    ctx.response.status_code.should eq(200)
+      subscribe_body = %({"action":"subscribe","subscription":{"endpoint":"https://push.example/test","keys":{"auth":"#{EXAMPLE_TEST_AUTH}","p256dh":"#{EXAMPLE_TEST_P256DH}"}}})
 
-    test_push_response.rewind
-    parsed = JSON.parse(HTTP::Client::Response.from_io(test_push_response).body)
-    parsed["delivered"].as_i.should eq(1)
-    parsed["failed"].as_i.should eq(0)
-    parsed["outcomes"].as_a.first["endpoint"].as_s.should eq("https://push.example/test")
-    client.requests.map(&.endpoint).should eq(["https://push.example/test"])
-    client.requests.first.body.bytesize.should be > 0
+      subscribe_response = IO::Memory.new
+      ctx = Crumble::Server::TestRequestContext.new(response_io: subscribe_response, session_store: session_store, resource: Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.uri_path, method: "POST", body: subscribe_body)
+      Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.handle(ctx)
+      ctx.response.close
+      ctx.response.status_code.should eq(204)
+      session_cookie = ctx.response.cookies.first?
+
+      test_push_response = IO::Memory.new
+      headers = HTTP::Headers{"Cookie" => "#{session_cookie.not_nil!.name}=#{session_cookie.not_nil!.value}"}
+      ctx = Crumble::Server::TestRequestContext.new(response_io: test_push_response, session_store: session_store, headers: headers, resource: Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.uri_path, method: "POST")
+      Crumble::Web::Push::Examples::MinimalApp::TestPushesResource.handle(ctx).should eq(true)
+      ctx.response.close
+      ctx.response.status_code.should eq(200)
+
+      test_push_response.rewind
+      parsed = JSON.parse(HTTP::Client::Response.from_io(test_push_response).body)
+      parsed["delivered"].as_i.should eq(1)
+      parsed["failed"].as_i.should eq(0)
+      parsed["outcomes"].as_a.first["endpoint"].as_s.should eq("https://push.example/test")
+      client.requests.map(&.endpoint).should eq(["https://push.example/test"])
+      client.requests.first.body.bytesize.should be > 0
+    ensure
+      Crumble::Web::Push::Server::Integration.sender_override = nil
+    end
   end
 end
