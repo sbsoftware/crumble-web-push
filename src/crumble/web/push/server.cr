@@ -14,7 +14,6 @@ module Crumble::Web::Push::Server
     VAPID_SUBJECT_ENV     = "CRUMBLE_WEB_PUSH_VAPID_SUBJECT"
 
     @@subscription_adapter : SubscriptionAdapter?
-    @@sender_override : Sender?
 
     def self.sender(adapter : SubscriptionAdapter, client : WebPush::Client) : Sender
       self.subscription_adapter = adapter
@@ -27,8 +26,6 @@ module Crumble::Web::Push::Server
     end
 
     def self.sender : Sender
-      return @@sender_override.not_nil! if @@sender_override
-
       sender(
         WebPush::Client.new(
           WebPush::VapidConfig.new(
@@ -55,15 +52,10 @@ module Crumble::Web::Push::Server
 
     def self.reset! : Nil
       @@subscription_adapter = nil
-      @@sender_override = nil
     end
 
     def self.subscription_endpoint_resource : SubscriptionEndpointResource.class
       SubscriptionEndpointResource
-    end
-
-    def self.sender_override=(sender : Sender?) : Sender?
-      @@sender_override = sender
     end
   end
 end
