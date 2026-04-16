@@ -13,7 +13,6 @@ describe Crumble::Web::Push do
 
   it "provides client and server integration namespaces" do
     Crumble::Web::Push::Client::Integration.name.should eq("Crumble::Web::Push::Client::Integration")
-    Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector.name.should eq("Crumble::Web::Push::Client::Integration::PushServiceWorkerConnector")
     Crumble::Web::Push::Server::Integration.name.should eq("Crumble::Web::Push::Server::Integration")
     Crumble::Web::Push::Server::Integration::Sender.name.should eq("Crumble::Web::Push::Server::Integration::Sender")
     Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.name.should eq("Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource")

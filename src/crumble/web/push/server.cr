@@ -10,11 +10,31 @@ module Crumble::Web::Push::Server
     class ConfigurationError < Exception
     end
 
+    VAPID_PRIVATE_KEY_ENV = "CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY"
+    VAPID_SUBJECT_ENV     = "CRUMBLE_WEB_PUSH_VAPID_SUBJECT"
+
     @@subscription_adapter : SubscriptionAdapter?
 
     def self.sender(adapter : SubscriptionAdapter, client : WebPush::Client) : Sender
       self.subscription_adapter = adapter
       sender(client)
+    end
+
+    def self.sender(adapter : SubscriptionAdapter) : Sender
+      self.subscription_adapter = adapter
+      sender
+    end
+
+    def self.sender : Sender
+      sender(
+        WebPush::Client.new(
+          WebPush::VapidConfig.new(
+            public_key: ENV.fetch(::Crumble::Web::Push::Client::Integration::VAPID_PUBLIC_KEY_ENV),
+            private_key: ENV.fetch(VAPID_PRIVATE_KEY_ENV),
+            subject: ENV.fetch(VAPID_SUBJECT_ENV)
+          )
+        )
+      )
     end
 
     def self.sender(client : WebPush::Client) : Sender
