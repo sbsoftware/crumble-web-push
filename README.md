@@ -25,6 +25,7 @@ Bridge shard that wires Crumble applications to generic Web Push primitives.
 - Generate one VAPID key pair and keep it stable for active subscriptions.
 - Set `CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY` for the browser-facing controller.
 - Configure a `Crumble::Web::Push::Server::SubscriptionAdapter` for persistence.
+  `Crumble::Web::Push::Server::InMemorySubscriptionAdapter` is available as a simple process-local option, but it is non-durable and loses subscriptions on process restart.
 - Set `CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY` and `CRUMBLE_WEB_PUSH_VAPID_SUBJECT` for server-side delivery.
 - Trigger sends through `Crumble::Web::Push::Server::Integration.sender`.
 - Remove stored subscriptions when a send outcome reports `cleanup?`.
@@ -48,7 +49,7 @@ Bridge shard that wires Crumble applications to generic Web Push primitives.
 
 A runnable local example lives in `examples/minimal_app/`:
 
-- `examples/minimal_app/app.cr` defines the page, the test-push resource, and the in-memory adapter.
+- `examples/minimal_app/app.cr` defines the page, the test-push resource, and configures the built-in in-memory adapter.
 - `examples/minimal_app/run.cr` boots the example with env-based VAPID config.
 
 Start it locally with:
@@ -98,17 +99,26 @@ Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence
 abstract class Crumble::Web::Push::Server::SubscriptionAdapter
   abstract def save(subscription : Subscription) : Nil
   abstract def delete(session_id : String) : Bool
-  abstract def list_by_session(session_id : String) : Array(Subscription)
+  abstract def get(session_id : String) : Subscription?
 end
 ```
 
-The shard intentionally does not ship a database implementation.
+The shard also ships a built-in process-local adapter:
+
+```crystal
+adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+```
+
+This adapter is safe to use when process-local, non-durable storage is acceptable, including simple production deployments that do not need subscriptions to survive restarts.
+The shard still does not ship a database-backed implementation.
 
 ### Sender facade
 
 Use `Crumble::Web::Push::Server::Integration.sender` to bridge stored subscriptions into `WebPush::Client#send`:
 
 ```crystal
+adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
 Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
 sender = Crumble::Web::Push::Server::Integration.sender
 outcomes = sender.send_to_session("session-id", %({"title":"Hello"}), ttl: 60)
@@ -117,6 +127,8 @@ outcomes.each do |outcome|
   adapter.delete(outcome.subscription.session_id) if outcome.cleanup?
 end
 ```
+
+If you need to inspect the stored value directly, use `adapter.get("session-id")`, which returns either one `Subscription` or `nil`.
 
 The default sender reads:
 - `CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY`
@@ -135,6 +147,7 @@ Each outcome exposes the upstream `WebPush::Client::SendResult` helpers through:
 Point the shared integration adapter at your persistence backend:
 
 ```crystal
+adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
 Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
 ```
 

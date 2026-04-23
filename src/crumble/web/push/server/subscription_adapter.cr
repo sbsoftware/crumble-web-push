@@ -4,6 +4,6 @@ module Crumble::Web::Push::Server
 
     abstract def delete(session_id : String) : Bool
 
-    abstract def list_by_session(session_id : String) : Array(Subscription)
+    abstract def get(session_id : String) : Subscription?
   end
 end

@@ -20,6 +20,7 @@ describe Crumble::Web::Push do
 
   it "exposes server subscription contracts and adapter interface" do
     Crumble::Web::Push::Server::SubscriptionAdapter.name.should eq("Crumble::Web::Push::Server::SubscriptionAdapter")
+    Crumble::Web::Push::Server::InMemorySubscriptionAdapter.name.should eq("Crumble::Web::Push::Server::InMemorySubscriptionAdapter")
     Crumble::Web::Push::Server::SubscriptionContract.name.should eq("Crumble::Web::Push::Server::SubscriptionContract")
     Crumble::Web::Push::Server::Integration::SendOutcome.name.should eq("Crumble::Web::Push::Server::Integration::SendOutcome")
   end

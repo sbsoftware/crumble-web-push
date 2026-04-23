@@ -34,7 +34,11 @@ module Crumble::Web::Push::Server::Integration
     end
 
     def send_to_session(session_id : String, payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)
-      send_subscriptions(Integration.subscription_adapter.list_by_session(session_id), payload, ttl: ttl, expires_at: expires_at, now: now)
+      if subscription = Integration.subscription_adapter.get(session_id)
+        [send_subscription(subscription, payload, ttl: ttl, expires_at: expires_at, now: now)]
+      else
+        [] of SendOutcome
+      end
     end
 
     def send_subscriptions(subscriptions : Enumerable(Subscription), payload : String, *, ttl : Int32, expires_at : Time = Time.utc + WebPush::Vapid::DEFAULT_EXPIRATION, now : Time = Time.utc) : Array(SendOutcome)

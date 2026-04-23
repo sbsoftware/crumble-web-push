@@ -3,34 +3,14 @@ require "json"
 
 module Crumble::Web::Push::Examples
   module MinimalApp
-    class MemorySubscriptionAdapter < ::Crumble::Web::Push::Server::SubscriptionAdapter
-      @subscriptions = {} of String => ::Crumble::Web::Push::Server::Subscription
+    @@subscription_adapter : ::Crumble::Web::Push::Server::InMemorySubscriptionAdapter?
 
-      def save(subscription : ::Crumble::Web::Push::Server::Subscription) : Nil
-        @subscriptions[subscription.session_id] = subscription
-      end
-
-      def delete(session_id : String) : Bool
-        !@subscriptions.delete(session_id).nil?
-      end
-
-      def list_by_session(session_id : String) : Array(::Crumble::Web::Push::Server::Subscription)
-        if subscription = @subscriptions[session_id]?
-          [subscription]
-        else
-          [] of ::Crumble::Web::Push::Server::Subscription
-        end
-      end
-    end
-
-    @@subscription_adapter : MemorySubscriptionAdapter?
-
-    def self.configure!(adapter : MemorySubscriptionAdapter = MemorySubscriptionAdapter.new) : Nil
+    def self.configure!(adapter : ::Crumble::Web::Push::Server::InMemorySubscriptionAdapter = ::Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new) : Nil
       @@subscription_adapter = adapter
       ::Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
     end
 
-    def self.subscription_adapter : MemorySubscriptionAdapter
+    def self.subscription_adapter : ::Crumble::Web::Push::Server::InMemorySubscriptionAdapter
       @@subscription_adapter || raise ::Crumble::Web::Push::Server::Integration::ConfigurationError.new("Minimal push example subscription adapter is not configured")
     end
 

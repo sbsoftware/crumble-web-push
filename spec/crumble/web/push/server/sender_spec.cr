@@ -6,25 +6,6 @@ private SENDER_TEST_SUBJECT     = "mailto:admin@example.com"
 private SENDER_TEST_P256DH      = "BNnjgxL7iRJVGG2WfKoCcEas8uXFYFw4b6ivLqWsMp8pMhmdN3LRYQTyFWuE_MOCSD_OLdj2K2gtH3ggUe4nYeY"
 private SENDER_TEST_AUTH        = "KsWb025fekARlsIkDa5Vnw"
 
-private class SenderSpecSubscriptionAdapter < Crumble::Web::Push::Server::SubscriptionAdapter
-  @subscriptions = [] of Crumble::Web::Push::Server::Subscription
-
-  def save(subscription : Crumble::Web::Push::Server::Subscription) : Nil
-    @subscriptions.reject! { |entry| entry.session_id == subscription.session_id }
-    @subscriptions << subscription
-  end
-
-  def delete(session_id : String) : Bool
-    size_before_delete = @subscriptions.size
-    @subscriptions.reject! { |entry| entry.session_id == session_id }
-    @subscriptions.size < size_before_delete
-  end
-
-  def list_by_session(session_id : String) : Array(Crumble::Web::Push::Server::Subscription)
-    @subscriptions.select { |entry| entry.session_id == session_id }
-  end
-end
-
 private struct CapturedSenderRequest
   getter endpoint : String
   getter body : String
@@ -61,7 +42,7 @@ describe Crumble::Web::Push::Server::Integration::Sender do
   end
 
   it "sends the subscription loaded for a session through WebPush::Client" do
-    adapter = SenderSpecSubscriptionAdapter.new
+    adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
     first_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(first_subscription)
     client = StubSenderClient.new(StubPushEndpoint.new(201))
@@ -77,8 +58,17 @@ describe Crumble::Web::Push::Server::Integration::Sender do
     client.requests.all? { |request| request.body.bytesize > 0 }.should be_true
   end
 
+  it "returns no outcomes when the session has no stored subscription" do
+    Crumble::Web::Push::Server::Integration.subscription_adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
+    client = StubSenderClient.new(StubPushEndpoint.new(201))
+    sender = Crumble::Web::Push::Server::Integration.sender(client)
+
+    sender.send_to_session("missing-session", %({"title":"Hello"}), ttl: 60).should be_empty
+    client.requests.should be_empty
+  end
+
   it "surfaces invalid-subscription cleanup from WebPush::Client send results" do
-    adapter = SenderSpecSubscriptionAdapter.new
+    adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
     invalid_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/invalid", auth: SENDER_TEST_AUTH, p256dh: SENDER_TEST_P256DH))
     adapter.save(invalid_subscription)
     Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
