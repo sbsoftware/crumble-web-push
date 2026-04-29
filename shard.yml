@@ -16,3 +16,6 @@ dependencies:
     github: sbsoftware/crumble-stimulus
   web-push:
     github: sbsoftware/web-push
+  js:
+    github: sbsoftware/js.cr
+    version: ">= 1.8.1"
