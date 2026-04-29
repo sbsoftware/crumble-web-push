@@ -17,6 +17,8 @@ module CrumbleWebPush
     # Keep the browser flow in one promise chain so subscribe/unsubscribe actions
     # resolve to either a subscription object or `null`.
     js_method :process_subscription_change do |action_name|
+      that = this
+
       unless this.ensure_support._call
         return Promise.resolve(nil)
       end
@@ -32,7 +34,7 @@ module CrumbleWebPush
               if existing_subscription
                 return existing_subscription
               else
-                return registration.pushManager.subscribe(userVisibleOnly: true, applicationServerKey: this.url_base64_to_uint8_array._call(this.vapidPublicKeyValue))
+                return registration.pushManager.subscribe(userVisibleOnly: true, applicationServerKey: that.url_base64_to_uint8_array._call(that.vapidPublicKeyValue))
               end
             end
           end
@@ -48,7 +50,7 @@ module CrumbleWebPush
       end.then do |subscription|
         return nil unless subscription
 
-        return this.post_subscription_change._call(action_name, subscription).then do
+        return that.post_subscription_change._call(action_name, subscription).then do
           return subscription
         end
       end.catch do
