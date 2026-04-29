@@ -1,5 +1,5 @@
 require "crumble"
-require "stimulus"
+require "crumble-stimulus"
 require "web-push"
 
 require "./crumble/web/push/server"

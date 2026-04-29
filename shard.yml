@@ -12,8 +12,7 @@ dependencies:
   crumble:
     github: sbsoftware/crumble
     version: ">= 0.31.0"
-  stimulus:
-    github: sbsoftware/stimulus.cr
-    version: ">= 0.6.0"
+  crumble-stimulus:
+    github: sbsoftware/crumble-stimulus
   web-push:
     github: sbsoftware/web-push
