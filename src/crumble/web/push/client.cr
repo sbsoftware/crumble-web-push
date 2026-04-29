@@ -53,7 +53,9 @@ module CrumbleWebPush
         return that.post_subscription_change._call(action_name, subscription).then do
           return subscription
         end
-      end.catch do
+      end.catch do |e|
+        console.log("Subscription Error")
+        console.log(e)
         return nil
       end
     end
