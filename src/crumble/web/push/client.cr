@@ -72,7 +72,7 @@ module CrumbleWebPush
     end
 
     js_method :post_subscription_change do |action_name, subscription|
-      return fetch(this.endpointUrlValue, method: "POST", headers: {"Content-Type" => "application/json"}, body: JSON.stringify({action: action_name, subscription: this.subscription_payload._call(subscription)})).then do |response|
+      return fetch(this.endpointUrlValue, method: "POST", headers: {"contentType" => "application/json"}, body: JSON.stringify({action: action_name, subscription: this.subscription_payload._call(subscription)})).then do |response|
         unless response.ok
           return Promise.reject(code: "sync_failed", message: "The subscription endpoint rejected the change.")
         end
