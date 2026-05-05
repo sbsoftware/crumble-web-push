@@ -1,6 +1,6 @@
 # crumble-web-push
 
-TODO: Write a description here
+Bridge shard that wires Crumble applications to generic Web Push primitives.
 
 ## Installation
 
@@ -14,26 +14,147 @@ TODO: Write a description here
 
 2. Run `shards install`
 
-## Usage
+3. Require the shard:
 
-```crystal
-require "crumble-web-push"
+   ```crystal
+   require "crumble-web-push"
+   ```
+
+## Setup Checklist
+
+- Generate one VAPID key pair and keep it stable for active subscriptions.
+- Set `CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY` for the browser-facing controller.
+- Configure a `Crumble::Web::Push::Server::SubscriptionAdapter` for persistence.
+  `Crumble::Web::Push::Server::InMemorySubscriptionAdapter` is available as a simple process-local option, but it is non-durable and loses subscriptions on process restart.
+- Set `CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY` and `CRUMBLE_WEB_PUSH_VAPID_SUBJECT` for server-side delivery.
+- Trigger sends through `Crumble::Web::Push::Server::Integration.sender`.
+- Remove stored subscriptions when a send outcome reports `cleanup?`.
+
+## Responsibilities
+
+`crumble-web-push` owns the Crumble-facing integration points:
+- service worker source generation through `Crumble::Web::Push::Client::Integration`
+- the Stimulus subscription controller attached to `ToHtml::Layout`
+- the default subscription sync endpoint at `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
+- ENV-backed `WebPush::Client` construction for the default sender facade
+- adapting stored Crumble subscriptions into `WebPush::Client#send` via `Crumble::Web::Push::Server::Integration::Sender`
+
+`web-push` owns the delivery primitives:
+- `WebPush::Subscription` parsing and validation
+- `WebPush::VapidConfig` and auth headers
+- `WebPush::Client#send`
+- provider response semantics such as invalid-subscription cleanup and retryability
+
+## Minimal Example
+
+A runnable local example lives in `examples/minimal_app/`:
+
+- `examples/minimal_app/app.cr` defines the page, the test-push resource, and configures the built-in in-memory adapter.
+- `examples/minimal_app/run.cr` boots the example with env-based VAPID config.
+
+Start it locally with:
+
+```bash
+export CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY=...
+export CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY=...
+export CRUMBLE_WEB_PUSH_VAPID_SUBJECT=mailto:admin@example.com
+crystal run examples/minimal_app/run.cr -- --port 3000
 ```
 
-TODO: Write usage instructions here
+Then open `http://localhost:3000/push_example`.
+
+The example shows the complete local flow:
+1. Requiring `crumble-web-push` registers the default root-scope push worker through `crumble`'s `service_worker` integration.
+2. The body-level Stimulus controller posts subscribe/unsubscribe changes to `SubscriptionEndpointResource`.
+3. `TestPushesResource` loads the current session's stored subscription and sends a test push through the sender facade.
+
+## API Overview
+
+### Push worker registration
+
+The shard automatically registers the default root-scope push worker when it is required in a Crumble app.
+No extra worker setup is needed in application code.
+
+### Subscription controller
+
+The shard defines `CrumbleWebPush::SubscriptionController` and automatically attaches it to the `body` tag of `ToHtml::Layout`.
+
+Default body-level values:
+- `endpoint_url` points at `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`
+- `vapid_public_key` reads `ENV["CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"]` and defaults to `""`
+
+Buttons or links can trigger the controller directly:
+
+```crystal
+button CrumbleWebPush::SubscriptionController.subscribe_action("click"), type: "button" do
+  "Subscribe"
+end
+```
+
+### Storage adapter
+
+Use `Crumble::Web::Push::Server::SubscriptionAdapter` to plug in any persistence backend:
+
+```crystal
+abstract class Crumble::Web::Push::Server::SubscriptionAdapter
+  abstract def save(subscription : Subscription) : Nil
+  abstract def delete(session_id : String) : Bool
+  abstract def get(session_id : String) : Subscription?
+end
+```
+
+The shard also ships a built-in process-local adapter:
+
+```crystal
+adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+```
+
+This adapter is safe to use when process-local, non-durable storage is acceptable, including simple production deployments that do not need subscriptions to survive restarts.
+The shard still does not ship a database-backed implementation.
+
+### Sender facade
+
+Use `Crumble::Web::Push::Server::Integration.sender` to bridge stored subscriptions into `WebPush::Client#send`:
+
+```crystal
+adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+sender = Crumble::Web::Push::Server::Integration.sender
+outcomes = sender.send_to_session("session-id", %({"title":"Hello"}), ttl: 60)
+
+outcomes.each do |outcome|
+  adapter.delete(outcome.subscription.session_id) if outcome.cleanup?
+end
+```
+
+If you need to inspect the stored value directly, use `adapter.get("session-id")`, which returns either one `Subscription` or `nil`.
+
+The default sender reads:
+- `CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY`
+- `CRUMBLE_WEB_PUSH_VAPID_PRIVATE_KEY`
+- `CRUMBLE_WEB_PUSH_VAPID_SUBJECT`
+
+Each outcome exposes the upstream `WebPush::Client::SendResult` helpers through:
+- `sent?`
+- `cleanup?`
+- `retryable?`
+- `status_code`
+- `error_message`
+
+### Subscription endpoint
+
+Point the shared integration adapter at your persistence backend:
+
+```crystal
+adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
+Crumble::Web::Push::Server::Integration.subscription_adapter = adapter
+```
+
+The browser posts `{action, subscription}` to `Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource`, and the resource always stores the current `ctx.session.id.to_s` as the subscription owner.
 
 ## Development
 
-TODO: Write development instructions here
-
-## Contributing
-
-1. Fork it (<https://github.com/your-github-user/crumble-web-push/fork>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
-
-## Contributors
-
-- [Stefan Bilharz](https://github.com/your-github-user) - creator and maintainer
+- Install dependencies: `shards install`
+- Run specs: `crystal spec`
+- Format code: `crystal tool format`
