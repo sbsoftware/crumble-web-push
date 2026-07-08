@@ -1,6 +1,7 @@
 require "./server/subscription"
 require "./server/subscription_adapter"
 require "./server/in_memory_subscription_adapter"
+require "./server/file_subscription_adapter"
 require "./server/subscription_contract"
 require "./server/subscription_endpoint_resource"
 require "./server/sender"
