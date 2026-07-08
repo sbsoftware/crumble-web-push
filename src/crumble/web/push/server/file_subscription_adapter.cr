@@ -40,6 +40,16 @@ module Crumble::Web::Push::Server
       end
     end
 
+    def each_subscription(&block : Subscription ->) : Nil
+      synchronize do
+        with_file_lock do
+          load_subscriptions.each_value do |subscription|
+            yield subscription
+          end
+        end
+      end
+    end
+
     private def synchronize(&)
       @@mutex.synchronize do
         yield

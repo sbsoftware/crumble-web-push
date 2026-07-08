@@ -13,5 +13,11 @@ module Crumble::Web::Push::Server
     def get(session_id : String) : Subscription?
       @subscriptions[session_id]?
     end
+
+    def each_subscription(&block : Subscription ->) : Nil
+      @subscriptions.each_value do |subscription|
+        yield subscription
+      end
+    end
   end
 end

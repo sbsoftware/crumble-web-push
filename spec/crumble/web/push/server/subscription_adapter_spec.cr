@@ -30,6 +30,24 @@ describe Crumble::Web::Push::Server::InMemorySubscriptionAdapter do
 
     adapter.get("session-1").should eq(updated_subscription)
   end
+
+  it "yields each stored subscription once" do
+    adapter = Crumble::Web::Push::Server::InMemorySubscriptionAdapter.new
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: "auth-1", p256dh: "p256dh-1"))
+    second_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/2", auth: "auth-2", p256dh: "p256dh-2"))
+
+    adapter.save(first_subscription)
+    adapter.save(second_subscription)
+
+    subscriptions = [] of Crumble::Web::Push::Server::Subscription
+    adapter.each_subscription do |subscription|
+      subscriptions << subscription
+    end
+
+    subscriptions.should contain(first_subscription)
+    subscriptions.should contain(second_subscription)
+    subscriptions.size.should eq(2)
+  end
 end
 
 describe Crumble::Web::Push::Server::FileSubscriptionAdapter do
@@ -84,5 +102,23 @@ describe Crumble::Web::Push::Server::FileSubscriptionAdapter do
 
     adapter.get("missing-session").should be_nil
     adapter.delete("missing-session").should be_false
+  end
+
+  it "yields each persisted subscription once" do
+    adapter = Crumble::Web::Push::Server::FileSubscriptionAdapter.new("spec/tmp/push/subscriptions.json")
+    first_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-1", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/1", auth: "auth-1", p256dh: "p256dh-1"))
+    second_subscription = Crumble::Web::Push::Server::Subscription.new(session_id: "session-2", web_push_subscription: WebPush::Subscription.new(endpoint: "https://push.example/2", auth: "auth-2", p256dh: "p256dh-2"))
+
+    adapter.save(first_subscription)
+    adapter.save(second_subscription)
+
+    subscriptions = [] of Crumble::Web::Push::Server::Subscription
+    adapter.each_subscription do |subscription|
+      subscriptions << subscription
+    end
+
+    subscriptions.should contain(first_subscription)
+    subscriptions.should contain(second_subscription)
+    subscriptions.size.should eq(2)
   end
 end
