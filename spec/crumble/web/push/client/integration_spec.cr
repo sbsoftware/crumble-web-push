@@ -17,7 +17,7 @@ describe Crumble::Web::Push::Client::Integration do
     source.should contain("registration.pushManager.subscribe")
     source.should contain("registration.pushManager.getSubscription()")
     source.should contain("this.endpointUrlValue")
-    source.should contain("this.vapidPublicKeyValue")
+    source.should contain("that.vapidPublicKeyValue")
     source.should contain("this.hasEndpointUrlValue")
     source.should contain("Promise.reject({code: \"sync_failed\"")
     source.should_not contain("dispatch(\"")
