@@ -2,9 +2,7 @@ require "json"
 
 module Crumble::Web::Push::Server::Integration
   class SubscriptionEndpointResource < Crumble::Resource
-    def self.root_path
-      "/__crumble_web_push_subscriptions__"
-    end
+    root_path "/__crumble_web_push_subscriptions__"
 
     def create
       payload = SubscriptionContract.parse_sync(ctx.request.body.try(&.gets_to_end) || "")

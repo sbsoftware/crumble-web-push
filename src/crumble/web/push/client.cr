@@ -102,7 +102,7 @@ end
 module Crumble::Web::Push::Client
   module Integration
     DEFAULT_SERVICE_WORKER_SCOPE    = "/"
-    DEFAULT_SUBSCRIPTION_ENDPOINT   = ::Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.root_path
+    DEFAULT_SUBSCRIPTION_ENDPOINT   = ::Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.uri_path
     VAPID_PUBLIC_KEY_ENV            = "CRUMBLE_WEB_PUSH_VAPID_PUBLIC_KEY"
     DEFAULT_VAPID_PUBLIC_KEY        = ""
     DEFAULT_SUBSCRIPTION_CONTROLLER = ::CrumbleWebPush::SubscriptionController
