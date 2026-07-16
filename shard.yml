@@ -1,5 +1,5 @@
 name: crumble-web-push
-version: 0.1.0
+version: 0.2.0
 
 authors:
   - Stefan Bilharz <stefan@sbsoftware.de>
@@ -11,7 +11,7 @@ license: MIT
 dependencies:
   crumble:
     github: sbsoftware/crumble
-    version: ">= 0.31.0"
+    version: ">= 0.32.0"
   crumble-stimulus:
     github: sbsoftware/crumble-stimulus
   web-push:

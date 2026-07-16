@@ -5,5 +5,7 @@ module Crumble::Web::Push::Server
     abstract def delete(session_id : String) : Bool
 
     abstract def get(session_id : String) : Subscription?
+
+    abstract def each_subscription(&block : Subscription ->) : Nil
   end
 end

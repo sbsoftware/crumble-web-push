@@ -17,7 +17,7 @@ describe Crumble::Web::Push::Client::Integration do
     source.should contain("registration.pushManager.subscribe")
     source.should contain("registration.pushManager.getSubscription()")
     source.should contain("this.endpointUrlValue")
-    source.should contain("this.vapidPublicKeyValue")
+    source.should contain("that.vapidPublicKeyValue")
     source.should contain("this.hasEndpointUrlValue")
     source.should contain("Promise.reject({code: \"sync_failed\"")
     source.should_not contain("dispatch(\"")
@@ -34,7 +34,7 @@ describe Crumble::Web::Push::Client::Integration do
       end
 
       html.should contain(%(data-controller="crumble-web-push--subscription"))
-      html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="#{Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.root_path}"))
+      html.should contain(%(data-crumble-web-push--subscription-endpoint-url-value="#{Crumble::Web::Push::Server::Integration::SubscriptionEndpointResource.uri_path}"))
       html.should contain(%(data-crumble-web-push--subscription-vapid-public-key-value="BKf6v4Nf3F9"))
       html.should contain(%(navigator.serviceWorker.register("/service_worker.js", {scope: "/"})))
     ensure
